@@ -283,7 +283,7 @@ class GazeboMARATopOrientVisionv0Env(gazebo_env.GazeboEnv):
             print("rot_quat: ",rot_quat)
             rot_matrix = quat.as_rotation_matrix(rot_quat)
             print("rot_matrix: ", rot_matrix)
-            EE_ROT_TGT = rot_matrix #np.asmatrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+            EE_ROT_TGT = np.asmatrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])#rot_matrix #np.asmatrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
             # rot_matrix
             # EE_ROT_TGT = np.asmatrix([[0.79660969, -0.51571238,  0.31536287], [0.51531424,  0.85207952,  0.09171542], [-0.31601302,  0.08944959,  0.94452874]]) #rot_matrix#
             EE_POINTS = np.asmatrix([[0, 0, 0]])
@@ -767,10 +767,10 @@ class GazeboMARATopOrientVisionv0Env(gazebo_env.GazeboEnv):
             self.reward = self.reward_dist
         #
         if(self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)])<0.1):
-            self.reward = self.reward +  orientation_scale * (1 -self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)]))
+            self.reward = self.reward +  orientation_scale * (1 + self.reward_orient) #-self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)]))
             print("Reward orientation is: ", self.reward)
         else:
-            self.reward = self.reward + orientation_scale * self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)])
+            self.reward = self.reward + orientation_scale * self.reward_orient#self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)])
 
         #this is very hard to converge
         # self.reward = self.reward_dist + orientation_scale*self.reward_orient

@@ -104,6 +104,7 @@ class GazeboMARATopOrientVisionCollisionv0Env(gazebo_env.GazeboEnv):
         self.detect_target_once = 1
         self._collision_msg = None
         self._filter_collision = None
+        self.nr_collision = 0
 
         self._time_lock = threading.RLock()
 
@@ -120,16 +121,16 @@ class GazeboMARATopOrientVisionCollisionv0Env(gazebo_env.GazeboEnv):
         # EE_POS_TGT = np.asmatrix([0.3305805, -0.1326121, 0.4868]) # center of the H
         # EE_ROT_TGT = np.asmatrix([[0.79660969, -0.51571238,  0.31536287], [0.51531424,  0.85207952,  0.09171542], [-0.31601302,  0.08944959,  0.94452874]])
         # EE_POS_TGT = np.asmatrix([0.0, 0.0, 1.4])
-        # EE_ROT_TGT = np.asmatrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        EE_ROT_TGT = np.asmatrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 
-        EE_ROT_TGT = np.asmatrix([[-0.99500678,  0.09835458, -0.01696725],
-                                  [-0.09951792, -0.99061751,  0.09366505],
-                                  [-0.00759566,  0.0948859,   0.99545918]])
+        #EE_ROT_TGT = np.asmatrix([[-0.99500678,  0.09835458, -0.01696725],
+        #                          [-0.09951792, -0.99061751,  0.09366505],
+        #                          [-0.00759566,  0.0948859,   0.99545918]])
         EE_POINTS = np.asmatrix([[0, 0, 0]])
         EE_VELOCITIES = np.asmatrix([[0, 0, 0]])
         # Initial joint position
         # INITIAL_JOINTS = np.array([0., 0., 1.57, 0., 1.57, 0.])
-        # INITIAL_JOINTS = np.array([0., 0., 1.37, 0., 1.37, 0.])
+        # INITIAL_JOINTS = np.array([0., 0., 1, 0., 1.37, 0.])
         INITIAL_JOINTS = np.array([0., 0., 0., 0., 0., 0.])
         # INITIAL_JOINTS = np.array([2.832116288509212e-05, -7.644633833070458e-05, -0.9999138952294953, -2.4499067147409903e-05, -1.5700625461089226, 1.4725492722966749e-05])
         # Used to initialize the robot, #TODO, clarify this more
@@ -278,6 +279,9 @@ class GazeboMARATopOrientVisionCollisionv0Env(gazebo_env.GazeboEnv):
         self.reset_world = rospy.ServiceProxy('/gazebo/reset_world', Empty)
         self.pub_set_model = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
 
+        self.unpause = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
+        self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
+
         self.addTarget()
 
         # Seed the environment
@@ -307,12 +311,12 @@ class GazeboMARATopOrientVisionCollisionv0Env(gazebo_env.GazeboEnv):
 
         if self.detect_target_once is 1:
             print("Get the target from vision, for now just use position.")
-            EE_POS_TGT = np.asmatrix([msg.position.x, msg.position.y, msg.position.z])
+            EE_POS_TGT = np.asmatrix([msg.position.x, msg.position.y, (msg.position.z + 0.05)])
             rot_quat = np.quaternion(msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w)
             print("rot_quat: ",rot_quat)
             rot_matrix = quat.as_rotation_matrix(rot_quat)
             print("rot_matrix: ", rot_matrix)
-            EE_ROT_TGT = rot_matrix #np.asmatrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+            EE_ROT_TGT = rot_matrix #np.asmatrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])#rot_matrix #np.asmatrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
             # rot_matrix
             # EE_ROT_TGT = np.asmatrix([[0.79660969, -0.51571238,  0.31536287], [0.51531424,  0.85207952,  0.09171542], [-0.31601302,  0.08944959,  0.94452874]]) #rot_matrix#
             EE_POINTS = np.asmatrix([[0, 0, 0]])
@@ -406,7 +410,7 @@ class GazeboMARATopOrientVisionCollisionv0Env(gazebo_env.GazeboEnv):
 
             roll = 0.0#random.uniform(-0.2, 0.6)
             pitch = 0.0#random.uniform(-0.2, 0.2)
-            yaw = -0.3#-0.3#random.uniform(-0.3, 0.3)
+            yaw = 0.3 #random.uniform(-0.3, 0.3)#-0.3#-0.3#random.uniform(-0.3, 0.3)
             new_camera_pose = False
             q_rubik = quat.from_euler_angles(roll, pitch, yaw)
             # print("q_rubik: ", q_rubik.x, q_rubik.y, q_rubik.z, q_rubik.w)
@@ -777,30 +781,103 @@ class GazeboMARATopOrientVisionCollisionv0Env(gazebo_env.GazeboEnv):
 
         #scale here the orientation because it should not be the main bias of the reward, position should be
         orientation_scale = 0.2
-
+        #
         # # here we want to fetch the positions of the end-effector which are nr_dof:nr_dof+3
-        if(self.rmse_func(self.ob[self.scara_chain.getNrOfJoints():(self.scara_chain.getNrOfJoints()+3)])<0.005):
-            self.reward = 1 - self.rmse_func(self.ob[self.scara_chain.getNrOfJoints():(self.scara_chain.getNrOfJoints()+3)]) # Make the reward increase as the distance decreases
-            print("Reward position is: ", self.reward)
-        else:
-            self.reward = self.reward_dist
+        # # here is the distance block
+        # if(self.rmse_func(self.ob[self.scara_chain.getNrOfJoints():(self.scara_chain.getNrOfJoints()+3)])<0.005):
+        #     self.reward = 1 - self.rmse_func(self.ob[self.scara_chain.getNrOfJoints():(self.scara_chain.getNrOfJoints()+3)]) # Make the reward increase as the distance decreases
+        #     print("Reward is: ", self.reward)
+        # else:
+        #     self.reward = self.reward_dist
+        #     # print("Reward is (minus): ", self.reward)
         #
-        if(self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)])<0.1):
-            self.reward = self.reward +  orientation_scale * (1 -self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)]))
-            print("Reward orientation is: ", self.reward)
-        else:
-            self.reward = self.reward + orientation_scale * self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)])
+        # # take into account the orientation
+        # if(self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)])<0.05):
+        #     self.reward = self.reward +  orientation_scale * (1 + self.reward_orient)#(1 -self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)]))
+        #     print("Reward orientation is: ", self.reward)
+        # else:
+        #     self.reward = self.reward + orientation_scale * self.reward_orient
 
 
-        #this is very hard to converge
-        # self.reward = self.reward_dist + orientation_scale*self.reward_orient
-        #
-        # if (self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)])<0.1 and self.rmse_func(self.ob[self.scara_chain.getNrOfJoints():(self.scara_chain.getNrOfJoints()+3)])<0.005):
-        #     self.reward = 10.*((1 - self.rmse_func(self.ob[self.scara_chain.getNrOfJoints():(self.scara_chain.getNrOfJoints()+3)])) + orientation_scale * (1 -self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)])))
-        #     print("Reward hit the target, and is: ", self.reward)
-        # # # self.reward = self.reward_final_dist + orientation_scale*self.final_rew_orient
+        if self._collision_msg is not None:
+            if self._collision_msg.collision1_name:
+                if self._collision_msg.collision2_name:
+                    self._collision_msg = None
+                    self.reward = (self.reward_dist +  orientation_scale * self.reward_orient)*3.0#-4
+                    print("Reward collision is: ", self.reward)
+                    self.nr_collision+=1
+                    print(self.nr_collision)
+                    # print("\ncollision detected: ", self._collision_msg)
+                    # Resets the state of the environment and returns an initial observation.
+                    # If the total number of collisions is higher than 1000 restart the simulatiopn
+                    #if self.nr_collision > 1000:#self.max_episode_steps:
+                    print("Restarting Simulation! \n")
+                    rospy.wait_for_service('/gazebo/reset_simulation')
+                    try:
+                        #reset_proxy.call()
+                        self.reset_proxy()
+                        self.nr_collision = 0
+                    except (rospy.ServiceException) as e:
+                        print ("/gazebo/reset_simulation service call failed")
+                else:
+                    if(self.rmse_func(self.ob[self.scara_chain.getNrOfJoints():(self.scara_chain.getNrOfJoints()+3)])<0.005):
+                        self.reward = 1 - self.rmse_func(self.ob[self.scara_chain.getNrOfJoints():(self.scara_chain.getNrOfJoints()+3)]) # Make the reward increase as the distance decreases
+                        print("Reward is: ", self.reward)
+                    else:
+                        self.reward = self.reward_dist
+                        # print("Reward is (minus): ", self.reward)
 
-        # self.reward =self.reward - abs(self.ob[(self.scara_chain.getNrOfJoints()+4)])
+                    # take into account the orientation
+                    if(self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)])<0.1):
+                        self.reward = self.reward +  orientation_scale * (1 + self.reward_orient)#(1 -self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)]))
+                        print("Reward orientation is: ", self.reward)
+                    else:
+                        self.reward = self.reward + orientation_scale * self.reward_orient
+
+                    #
+                    # rospy.wait_for_service('/gazebo/unpause_physics')
+                    # try:
+                    #     #resp_pause = pause.call()
+                    #     self.unpause()
+                    # except (rospy.ServiceException) as e:
+                    #     print ("/gazebo/unpause_physics service call failed")
+            else:
+                if(self.rmse_func(self.ob[self.scara_chain.getNrOfJoints():(self.scara_chain.getNrOfJoints()+3)])<0.005):
+                    self.reward = 1 - self.rmse_func(self.ob[self.scara_chain.getNrOfJoints():(self.scara_chain.getNrOfJoints()+3)]) # Make the reward increase as the distance decreases
+                    print("Reward is: ", self.reward)
+                else:
+                    self.reward = self.reward_dist
+                    # print("Reward is (minus): ", self.reward)
+
+                # take into account the orientation
+                if(self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)])<0.1):
+                    self.reward = self.reward +  orientation_scale * (1 + self.reward_orient)#(1 -self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)]))
+                    print("Reward orientation is: ", self.reward)
+                else:
+                    self.reward = self.reward + orientation_scale * self.reward_orient
+
+           #self.rmse_func(self.ob[self.scara_chain.getNrOfJoints()+3:(self.scara_chain.getNrOfJoints()+7)])
+
+            #self.reward = self.reward_final_dist + orientation_scale*self.final_rew_orient
+
+            # self.reward =self.reward - abs(self.ob[(self.scara_chain.getNrOfJoints()+4)])
+                    # self.reward = - 5
+                    # print("Reward collision is: ", self.reward)
+                    # self._collision_msg = None
+                    # print("\ncollision detected: ", self._collision_msg)
+                    # Resets the state of the environment and returns an initial observation.
+                    # rospy.wait_for_service('/gazebo/reset_simulation')
+
+                        # self.goToInit()
+                        # self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_world', Empty)
+                    #     # self.reward = self.reward - 5
+                    #     # self.goToInit()
+                    #     self._collision_msg = None
+                    #     self._pub.publish(self.get_trajectory_message(action[:self.scara_chain.getNrOfJoints()]))
+
+
+
+
         # Calculate if the env has been solved
         done = bool(((abs(self.reward_dist) < 0.005) and (abs(self.reward_orient)) < 0.1) or (self.iterator>self.max_episode_steps))
 
@@ -814,27 +891,6 @@ class GazeboMARATopOrientVisionCollisionv0Env(gazebo_env.GazeboEnv):
             self.ob = self.take_observation()
 
 
-        if self._collision_msg is not None:
-            if self._collision_msg.collision1_name:
-                if self._collision_msg.collision2_name:
-                    print("\ncollision detected: ", self._collision_msg)
-                    # Resets the state of the environment and returns an initial observation.
-                    rospy.wait_for_service('/gazebo/reset_simulation')
-                    try:
-                        #reset_proxy.call()
-                        self.reset_proxy()
-                        self._collision_msg = None
-                    except (rospy.ServiceException) as e:
-                        print ("/gazebo/reset_simulation service call failed")
-                    # self.goToInit()
-                    # self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_world', Empty)
-                    self.reward = self.reward - 5
-                    # self.goToInit()
-                    self._collision_msg = None
-
-        # # this is workout for the collision enviroment, does not work properly till now.
-        # if done:
-        #     self.goToInit()
         # Return the corresponding observations, rewards, etc.
         # TODO, understand better what's the last object to return
         return self.ob, self.reward, done, {}
