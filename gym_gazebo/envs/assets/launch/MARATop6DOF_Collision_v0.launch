@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="paused" default="false"/>
-  <arg name="gui" default="true"/>
+  <arg name="gui" default="false"/>
   <arg name="verbose" default="true"/>
 
   <!-- startup simulated world -->
