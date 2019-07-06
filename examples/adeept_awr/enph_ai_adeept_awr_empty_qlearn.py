@@ -22,7 +22,7 @@ def render():
 
 if __name__ == '__main__':
 
-    env = gym.make('GazeboCircuit2TurtlebotLidar-v0')
+    env = gym.make('Gazebo_ENPH_Ai_Adeept_Awr_Empty_v0')
 
     outdir = '/tmp/gazebo_gym_experiments'
     env = gym.wrappers.Monitor(env, outdir, force=True)
@@ -55,7 +55,8 @@ if __name__ == '__main__':
 
         state = ''.join(map(str, observation))
 
-        for i in range(1500):
+        # To change max episode steps, go to gym_gazebo/__init__.py
+        while True:
 
             # Pick an action based on the current state
             action = qlearn.chooseAction(state)
