@@ -13,12 +13,12 @@ from sensor_msgs.msg import LaserScan
 
 from gym.utils import seeding
 
-class GazeboCircuit2TurtlebotLidarEnv(gazebo_env.GazeboEnv):
+class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
     def __init__(self):
         # Launch the simulation with the given launchfile name
-        gazebo_env.GazeboEnv.__init__(self, "GazeboCircuit2TurtlebotLidar_v0.launch")
-        self.vel_pub = rospy.Publisher('/mobile_base/commands/velocity', Twist, queue_size=5)
+        gazebo_env.GazeboEnv.__init__(self, "/home/tylerlum/gym-gazebo/gym_gazebo/envs/installation/catkin_ws/src/enph_ai/launch/sim.launch")
+        self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
         self.unpause = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
         self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
         self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
@@ -64,12 +64,12 @@ class GazeboCircuit2TurtlebotLidarEnv(gazebo_env.GazeboEnv):
             self.vel_pub.publish(vel_cmd)
         elif action == 1: #LEFT
             vel_cmd = Twist()
-            vel_cmd.linear.x = 0.05
+            vel_cmd.linear.x = 0
             vel_cmd.angular.z = 0.3
             self.vel_pub.publish(vel_cmd)
         elif action == 2: #RIGHT
             vel_cmd = Twist()
-            vel_cmd.linear.x = 0.05
+            vel_cmd.linear.x = 0
             vel_cmd.angular.z = -0.3
             self.vel_pub.publish(vel_cmd)
 

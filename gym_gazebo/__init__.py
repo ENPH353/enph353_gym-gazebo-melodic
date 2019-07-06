@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 ## ENPH 353 Adeept Awr envs
 register(
-    id='Gazebo_ENPH_Ai_Adeept_Awr_Empty_v0',
+    id='Gazebo_ENPH_Ai_Adeept_Awr_Empty-v0',
     entry_point='gym_gazebo.envs.adeept_awr:Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env',
     max_episode_steps=100,
 )

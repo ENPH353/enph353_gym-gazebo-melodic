@@ -26,7 +26,7 @@ def render():
 if __name__ == '__main__':
 
     # Setup environment
-    env = gym.make('Gazebo_ENPH_Ai_Adeept_Awr_Empty_v0')
+    env = gym.make('Gazebo_ENPH_Ai_Adeept_Awr_Empty-v0')
 
     outdir = '/tmp/gazebo_gym_experiments'
     env = gym.wrappers.Monitor(env, outdir, force=True)
@@ -70,7 +70,9 @@ if __name__ == '__main__':
         state = ''.join(map(str, observation))
 
         # To change max episode steps, go to gym_gazebo/__init__.py
+        i = 0
         while True:
+            i += 1
 
             # Pick an action based on the current state
             action = qlearn.chooseAction(state)
