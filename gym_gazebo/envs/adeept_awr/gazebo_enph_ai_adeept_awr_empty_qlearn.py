@@ -10,10 +10,14 @@ from geometry_msgs.msg import Twist
 from std_srvs.srv import Empty
 
 from sensor_msgs.msg import LaserScan
+from gazebo_msgs.msg import ModelStates
 
 from gym.utils import seeding
 
 class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
+
+    def callback(self, data):
+        self.data = data
 
     def __init__(self):
         # Launch the simulation with the given launchfile name
@@ -23,6 +27,8 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
         # self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
         self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_world', Empty)
+        self.pose_sub = rospy.Subscriber('/gazebo/model_states', ModelStates, self.callback)
+        self.data = None
 
         self.action_space = spaces.Discrete(3) #F,L,R
         self.reward_range = (-np.inf, np.inf)
@@ -46,6 +52,40 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
                 done = True
         return discretized_ranges,done
 
+    def process_pose(self,data,num_decimal_places):
+        # Find index of robot
+        index = -1
+        for i in range(0, len(data.name)):
+            if data.name[i] == 'robot':
+                index = i
+        if index == -1:
+            return [0, 0, 0, 0, 0, 0, 0], False, False
+
+        # Get robot pose
+        robot_pose = data.pose[index]
+        robot_position = robot_pose.position
+        robot_orientation = robot_pose.orientation
+
+        # print("b. Processing position")
+        position = []
+        position.append(round(robot_pose.position.x, num_decimal_places))
+        position.append(round(robot_pose.position.y, num_decimal_places))
+        position.append(round(robot_pose.position.z, num_decimal_places))
+        position.append(round(robot_pose.orientation.x, num_decimal_places))
+        position.append(round(robot_pose.orientation.y, num_decimal_places))
+        position.append(round(robot_pose.orientation.z, num_decimal_places))
+        position.append(round(robot_pose.orientation.w, num_decimal_places))
+        success = False
+        fail = False
+        if (robot_pose.position.y > 2):
+            success = True
+        elif (robot_pose.position.y < 0.2):
+            fail = True
+        elif (robot_pose.position.x > 0.4 or robot_pose.position.x < -0.4):
+            fail = True
+
+        return position, success, fail
+
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
@@ -66,20 +106,24 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         elif action == 1: #LEFT
             vel_cmd = Twist()
             vel_cmd.linear.x = 0
-            vel_cmd.angular.z = 3
+            vel_cmd.angular.z = 2
             self.vel_pub.publish(vel_cmd)
         elif action == 2: #RIGHT
             vel_cmd = Twist()
             vel_cmd.linear.x = 0
-            vel_cmd.angular.z = -3
+            vel_cmd.angular.z = -2
             self.vel_pub.publish(vel_cmd)
 
-        data = None
+        data = self.data
         while data is None:
-            try:
-                data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
-            except:
-                pass
+            data = self.data
+        # data = None
+        # while data is None:
+        #     try:
+        #         # data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
+        #         data = rospy.wait_for_message('/gazebo/model_states', ModelStates, timeout=5)
+        #     except:
+        #         pass
 
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
@@ -88,17 +132,23 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        state,done = self.discretize_observation(data,5)
+        # state,done = self.discretize_observation(data,5)
+        state, succeeded, failed = self.process_pose(data, 2)
 
-        if not done:
-            if action == 0:
-                reward = 5
-            else:
-                reward = 1
+        if succeeded:
+            reward = 300
+        elif failed:
+            reward = -300
         else:
-            reward = -200
+            reward = 0
 
-        return state, reward, done, {}
+        if action == 0:
+            reward -= 1
+        else:
+            reward -= 5
+
+        reward -= (2 - state[1])
+        return state, reward, (succeeded or failed), {}
 
     def reset(self):
 
@@ -121,12 +171,15 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
             print ("/gazebo/unpause_physics service call failed")
 
         #read laser data
-        data = None
+        data = self.data
         while data is None:
-            try:
-                data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
-            except:
-                pass
+            data = self.data
+        # data = None
+        # while data is None:
+        #     try:
+        #         data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
+        #     except:
+        #         pass
 
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
@@ -135,6 +188,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        state = self.discretize_observation(data,5)
+        #state = self.discretize_observation(data,5)
+        state, succeeded, failed = self.process_pose(data, 2)
 
         return state
