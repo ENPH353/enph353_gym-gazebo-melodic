@@ -10,6 +10,9 @@ import time
 import qlearn
 import liveplot
 
+import os.path
+from os import path
+
 def render():
     render_skip = 0 #Skip first X episodes.
     render_interval = 50 #Show render Every Y episodes.
@@ -22,6 +25,7 @@ def render():
 
 if __name__ == '__main__':
 
+    # Setup environment
     env = gym.make('Gazebo_ENPH_Ai_Adeept_Awr_Empty_v0')
 
     outdir = '/tmp/gazebo_gym_experiments'
@@ -30,6 +34,7 @@ if __name__ == '__main__':
 
     last_time_steps = numpy.ndarray(0)
 
+    # Setup qlearning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
                     alpha=0.2, gamma=0.8, epsilon=0.9)
 
@@ -37,17 +42,26 @@ if __name__ == '__main__':
 
     epsilon_discount = 0.9986
 
+    # Load parameters, move file before running if not wanted
+    filename = 'objs.pkl'
+    if path.exists(filename):
+        qlearn.loadParams(filename)
+        print("Loading params from {}".format(filename))
+    else:
+        print("{} not found. Starting fresh.".format(filename))
+
+    # Setup for looping
     start_time = time.time()
     total_episodes = 10000
     highest_reward = 0
 
     for x in range(total_episodes):
+        # Reset for episode
         done = False
-
         cumulated_reward = 0 #Should going forward give more reward then L/R ?
-
         observation = env.reset()
 
+        # Decrease chance of random action
         if qlearn.epsilon > 0.05:
             qlearn.epsilon *= epsilon_discount
 
@@ -80,8 +94,11 @@ if __name__ == '__main__':
                 last_time_steps = numpy.append(last_time_steps, [int(i + 1)])
                 break
 
+        # Update plot and save params every 100 episodes
         if x%100==0:
             plotter.plot(env)
+            qlearn.saveParams(filename)
+            print("Saving params to {}".format(filename))
 
         m, s = divmod(int(time.time() - start_time), 60)
         h, m = divmod(m, 60)
