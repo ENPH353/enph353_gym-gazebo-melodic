@@ -9,6 +9,9 @@ class QLearn:
         self.gamma = gamma      # discount factor
         self.actions = actions
 
+        self.num_times_learn = 0
+        self.num_times_seen_before = 0
+
     def getQ(self, state, action):
         return self.q.get((state, action), 0.0)
 
@@ -22,6 +25,8 @@ class QLearn:
             self.q[(state, action)] = reward
         else:
             self.q[(state, action)] = oldv + self.alpha * (value - oldv)
+            self.num_times_seen_before += 1
+        self.num_times_learn += 1
 
     def chooseAction(self, state, return_q=False):
         q = [self.getQ(state, a) for a in self.actions]

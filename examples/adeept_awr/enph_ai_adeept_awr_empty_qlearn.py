@@ -68,6 +68,8 @@ if __name__ == '__main__':
         #render() #defined above, not env.render()
 
         state = ''.join(map(str, observation))
+        qlearn.num_times_learn = 0
+        qlearn.num_times_seen_before = 0
 
         # To change max episode steps, go to gym_gazebo/__init__.py
         i = 0
@@ -95,6 +97,7 @@ if __name__ == '__main__':
             else:
                 last_time_steps = numpy.append(last_time_steps, [int(i + 1)])
                 break
+        print("Amount of state action pairs seen before: {}/{}".format(qlearn.num_times_seen_before, qlearn.num_times_learn))
 
         # Update plot and save params every 100 episodes
         if x%100==0:
