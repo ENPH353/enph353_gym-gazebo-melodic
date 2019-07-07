@@ -12,6 +12,11 @@ register(
     entry_point='gym_gazebo.envs.adeept_awr:Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env',
     max_episode_steps=300,
 )
+register(
+    id='Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN-v0',
+    entry_point='gym_gazebo.envs.adeept_awr:Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env',
+    max_episode_steps=300,
+)
 
 # Turtlebot envs
 register(

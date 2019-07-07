@@ -29,7 +29,7 @@ def clear_monitor_files(training_dir):
 if __name__ == '__main__':
 
     #REMEMBER!: turtlebot_nn_setup.bash must be executed.
-    env = gym.make('GazeboCircuit2TurtlebotLidarNn-v0')
+    env = gym.make('Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN-v0')
     outdir = '/tmp/gazebo_gym_experiments/'
     path = '/tmp/turtle_c2_dqn_ep'
     plotter = liveplot.LivePlot(outdir)

@@ -13,15 +13,22 @@ from sensor_msgs.msg import LaserScan
 
 from gym.utils import seeding
 
-class GazeboCircuit2TurtlebotLidarNnEnv(gazebo_env.GazeboEnv):
+class Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env(gazebo_env.GazeboEnv):
+
+    def callback(self, data):
+        self.data = data
 
     def __init__(self):
         # Launch the simulation with the given launchfile name
-        gazebo_env.GazeboEnv.__init__(self, "GazeboCircuit2TurtlebotLidar_v0.launch")
-        self.vel_pub = rospy.Publisher('/mobile_base/commands/velocity', Twist, queue_size=5)
+        gazebo_env.GazeboEnv.__init__(self, "/home/tylerlum/gym-gazebo/gym_gazebo/envs/installation/catkin_ws/src/enph_ai/launch/sim.launch")
+        self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
         self.unpause = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
         self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
-        self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
+        # self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
+        self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_world', Empty)
+
+        self.pose_sub = rospy.Subscriber('/gazebo/model_states', ModelStates, self.callback)
+        self.data = None
 
         self.reward_range = (-np.inf, np.inf)
 
@@ -34,6 +41,43 @@ class GazeboCircuit2TurtlebotLidarNnEnv(gazebo_env.GazeboEnv):
             if (min_range > data.ranges[i] > 0):
                 done = True
         return data.ranges,done
+
+    def process_pose(self,data,num_decimal_places):
+        # Find index of robot
+        index = -1
+        for i in range(0, len(data.name)):
+            if data.name[i] == 'robot':
+                index = i
+        if index == -1:
+            print("ERROR: Can't find robot")
+            return [0, 0, 0, 0, 0, 0, 0], False, False
+
+        # Get robot pose
+        robot_pose = data.pose[index]
+        robot_position = robot_pose.position
+        robot_orientation = robot_pose.orientation
+
+        # print("b. Processing position")
+        position = []
+        position.append(round(robot_pose.position.x, num_decimal_places))
+        position.append(round(robot_pose.position.y, num_decimal_places))
+        # Use yaw angle rather than quaternion
+        q_w = robot_pose.orientation.w
+        q_x = robot_pose.orientation.x
+        q_y = robot_pose.orientation.y
+        q_z = robot_pose.orientation.z
+        yaw = math.atan2(2*(q_w*q_z+q_x*q_y), 1 - 2*(q_y*q_y + q_z*q_z))
+        position.append(round(yaw, num_decimal_places))
+        success = False
+        fail = False
+        if (robot_pose.position.y > 2):
+            success = True
+        elif (robot_pose.position.y < 0.2):
+            fail = True
+        elif (robot_pose.position.x > 0.4 or robot_pose.position.x < -0.4):
+            fail = True
+
+        return position, success, fail
 
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -54,12 +98,9 @@ class GazeboCircuit2TurtlebotLidarNnEnv(gazebo_env.GazeboEnv):
         vel_cmd.angular.z = ang_vel
         self.vel_pub.publish(vel_cmd)
 
-        data = None
+        data = self.data
         while data is None:
-            try:
-                data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
-            except:
-                pass
+            data = self.data
 
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
@@ -68,13 +109,15 @@ class GazeboCircuit2TurtlebotLidarNnEnv(gazebo_env.GazeboEnv):
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        state,done = self.calculate_observation(data)
-
+        state, succeeded, failed = self.process_pose(data, 1)
+        done = (succeeded or failed)
         if not done:
             # Straight reward = 5, Max angle reward = 0.5
             reward = round(15*(max_ang_speed - abs(ang_vel) +0.0335), 2)
-            # print ("Action : "+str(action)+" Ang_vel : "+str(ang_vel)+" reward="+str(reward))
-        else:
+            print ("Action : "+str(action)+" Ang_vel : "+str(ang_vel)+" reward="+str(reward))
+        elif succeeded:
+            reward = 200
+        elif failed:
             reward = -200
 
         return np.asarray(state), reward, done, {}
@@ -95,13 +138,10 @@ class GazeboCircuit2TurtlebotLidarNnEnv(gazebo_env.GazeboEnv):
             self.unpause()
         except (rospy.ServiceException) as e:
             print ("/gazebo/unpause_physics service call failed")
-        #read laser data
-        data = None
+
+        data = self.data
         while data is None:
-            try:
-                data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
-            except:
-                pass
+            data = self.data
 
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
@@ -110,6 +150,6 @@ class GazeboCircuit2TurtlebotLidarNnEnv(gazebo_env.GazeboEnv):
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        state,done = self.calculate_observation(data)
+        state, succeeded, failed = self.process_pose(data, 1)
 
         return np.asarray(state)
