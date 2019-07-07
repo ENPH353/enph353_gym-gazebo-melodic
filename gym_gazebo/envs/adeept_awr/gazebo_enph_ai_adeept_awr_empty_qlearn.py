@@ -136,18 +136,18 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         state, succeeded, failed = self.process_pose(data, 2)
 
         if succeeded:
-            reward = 300
+            reward = 500
         elif failed:
-            reward = -300
+            reward = -100
         else:
             reward = 0
 
-        if action == 0:
-            reward -= 1
-        else:
-            reward -= 5
+        # if action == 0:
+        #     reward -= 1
+        # else:
+        #     reward -= 5
 
-        reward -= (2 - state[1])
+        reward += state[1]
         return state, reward, (succeeded or failed), {}
 
     def reset(self):
