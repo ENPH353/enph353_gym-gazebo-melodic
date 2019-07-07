@@ -3,6 +3,7 @@ import rospy
 import roslaunch
 import time
 import numpy as np
+import math
 
 from gym import utils, spaces
 from gym_gazebo.envs import gazebo_env
@@ -59,6 +60,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
             if data.name[i] == 'robot':
                 index = i
         if index == -1:
+            print("ERROR: Can't find robot")
             return [0, 0, 0, 0, 0, 0, 0], False, False
 
         # Get robot pose
@@ -70,11 +72,18 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         position = []
         position.append(round(robot_pose.position.x, num_decimal_places))
         position.append(round(robot_pose.position.y, num_decimal_places))
-        position.append(round(robot_pose.position.z, num_decimal_places))
-        position.append(round(robot_pose.orientation.x, num_decimal_places))
-        position.append(round(robot_pose.orientation.y, num_decimal_places))
-        position.append(round(robot_pose.orientation.z, num_decimal_places))
-        position.append(round(robot_pose.orientation.w, num_decimal_places))
+        # position.append(round(robot_pose.position.z, num_decimal_places))
+        # position.append(round(robot_pose.orientation.x, num_decimal_places))
+        # position.append(round(robot_pose.orientation.y, num_decimal_places))
+        # position.append(round(robot_pose.orientation.z, num_decimal_places))
+        # position.append(round(robot_pose.orientation.w, num_decimal_places))
+        # Use yaw angle rather than quaternion
+        q_w = robot_pose.orientation.w
+        q_x = robot_pose.orientation.x
+        q_y = robot_pose.orientation.y
+        q_z = robot_pose.orientation.z
+        yaw = math.atan2(2*(q_w*q_z+q_x*q_y), 1 - 2*(q_y*q_y + q_z*q_z))
+        position.append(round(yaw, num_decimal_places))
         success = False
         fail = False
         if (robot_pose.position.y > 2):
@@ -117,13 +126,6 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         data = self.data
         while data is None:
             data = self.data
-        # data = None
-        # while data is None:
-        #     try:
-        #         # data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
-        #         data = rospy.wait_for_message('/gazebo/model_states', ModelStates, timeout=5)
-        #     except:
-        #         pass
 
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
@@ -133,7 +135,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
             print ("/gazebo/pause_physics service call failed")
 
         # state,done = self.discretize_observation(data,5)
-        state, succeeded, failed = self.process_pose(data, 2)
+        state, succeeded, failed = self.process_pose(data, 1)
 
         if succeeded:
             reward = 500
@@ -174,12 +176,6 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         data = self.data
         while data is None:
             data = self.data
-        # data = None
-        # while data is None:
-        #     try:
-        #         data = rospy.wait_for_message('/scan', LaserScan, timeout=5)
-        #     except:
-        #         pass
 
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
@@ -189,6 +185,6 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
             print ("/gazebo/pause_physics service call failed")
 
         #state = self.discretize_observation(data,5)
-        state, succeeded, failed = self.process_pose(data, 2)
+        state, succeeded, failed = self.process_pose(data, 1)
 
         return state
