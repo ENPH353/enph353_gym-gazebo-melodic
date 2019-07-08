@@ -12,88 +12,78 @@ from std_srvs.srv import Empty
 
 from sensor_msgs.msg import LaserScan
 from gazebo_msgs.msg import ModelStates
+from std_msgs.msg import Bool
 
 from gym.utils import seeding
 
 class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
-    def callback(self, data):
-        self.data = data
+    def pose_callback(self, data):
+        self.pose_data = data
+
+    def collision_callback(self, data):
+        self.collision_data = data
 
     def __init__(self):
         # Launch the simulation with the given launchfile name
         gazebo_env.GazeboEnv.__init__(self, "/home/tylerlum/gym-gazebo/gym_gazebo/envs/installation/catkin_ws/src/enph_ai/launch/sim.launch")
+
+        # Setup publisher for velocity
         self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
+
+        # Setup simulation services
         self.unpause = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
         self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
-        # self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
         self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_world', Empty)
-        self.pose_sub = rospy.Subscriber('/gazebo/model_states', ModelStates, self.callback)
-        self.data = None
 
+        # Setup subscription to position and collision
+        self.pose_sub = rospy.Subscriber('/gazebo/model_states', ModelStates, self.pose_callback)
+        self.collision_sub = rospy.Subscriber('/isHit', Bool, self.collision_callback)
+        self.pose_data = None
+        self.collision_data = None
+
+        # Setup simulation parameters
         self.action_space = spaces.Discrete(3) #F,L,R
         self.reward_range = (-np.inf, np.inf)
-
         self._seed()
 
-    def discretize_observation(self,data,new_ranges):
-        discretized_ranges = []
-        min_range = 0.2
-        done = False
-        mod = len(data.ranges)/new_ranges
-        for i, item in enumerate(data.ranges):
-            if (i%mod==0):
-                if data.ranges[i] == float ('Inf') or np.isinf(data.ranges[i]):
-                    discretized_ranges.append(6)
-                elif np.isnan(data.ranges[i]):
-                    discretized_ranges.append(0)
-                else:
-                    discretized_ranges.append(int(data.ranges[i]))
-            if (min_range > data.ranges[i] > 0):
-                done = True
-        return discretized_ranges,done
-
-    def process_pose(self,data,num_decimal_places):
+    def process_pose_and_collision(self,p_data,num_decimal_places,c_data):
         # Find index of robot
         index = -1
-        for i in range(0, len(data.name)):
-            if data.name[i] == 'robot':
+        for i in range(0, len(p_data.name)):
+            if p_data.name[i] == 'robot':
                 index = i
         if index == -1:
             print("ERROR: Can't find robot")
-            return [0, 0, 0, 0, 0, 0, 0], False, False
+            return [0, 0, 0], False, False
 
         # Get robot pose
-        robot_pose = data.pose[index]
+        robot_pose = p_data.pose[index]
         robot_position = robot_pose.position
         robot_orientation = robot_pose.orientation
 
-        # print("b. Processing position")
-        position = []
-        position.append(round(robot_pose.position.x, num_decimal_places))
-        position.append(round(robot_pose.position.y, num_decimal_places))
-        # position.append(round(robot_pose.position.z, num_decimal_places))
-        # position.append(round(robot_pose.orientation.x, num_decimal_places))
-        # position.append(round(robot_pose.orientation.y, num_decimal_places))
-        # position.append(round(robot_pose.orientation.z, num_decimal_places))
-        # position.append(round(robot_pose.orientation.w, num_decimal_places))
-        # Use yaw angle rather than quaternion
+        # Setup position state return value
+        state = []
+        state.append(round(robot_pose.position.x, num_decimal_places))
+        state.append(round(robot_pose.position.y, num_decimal_places))
         q_w = robot_pose.orientation.w
         q_x = robot_pose.orientation.x
         q_y = robot_pose.orientation.y
         q_z = robot_pose.orientation.z
         yaw = math.atan2(2*(q_w*q_z+q_x*q_y), 1 - 2*(q_y*q_y + q_z*q_z))
-        position.append(round(yaw, num_decimal_places))
+        state.append(round(yaw, num_decimal_places))
+
+        # Check for end condition
         success = False
         fail = False
         if (robot_pose.position.y > 2):
+            # Succeeds if reaches the end
             success = True
-        elif (robot_pose.position.y < 0.2):
-            fail = True
-        elif (robot_pose.position.x > 0.4 or robot_pose.position.x < -0.4):
+        elif c_data.data:
+            # Fails if it collides with wall
             fail = True
 
-        return position, success, fail
+        return state, success, fail
 
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -101,6 +91,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
     def step(self, action):
 
+        # Unpause simulation to make observation
         rospy.wait_for_service('/gazebo/unpause_physics')
         try:
             self.unpause()
@@ -123,10 +114,16 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
             vel_cmd.angular.z = -2
             self.vel_pub.publish(vel_cmd)
 
-        data = self.data
-        while data is None:
-            data = self.data
+        # Read pose and collision data
+        p_data = self.pose_data
+        while p_data is None:
+            p_data = self.pose_data
 
+        c_data = self.collision_data
+        while c_data is None:
+            c_data = self.collision_data
+
+        # Pause simulation
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
             #resp_pause = pause.call()
@@ -134,9 +131,9 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        # state,done = self.discretize_observation(data,5)
-        state, succeeded, failed = self.process_pose(data, 1)
+        state, succeeded, failed = self.process_pose_and_collision(p_data, 1, c_data)
 
+        # Reward function
         if succeeded:
             reward = 500
         elif failed:
@@ -155,7 +152,6 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
     def reset(self):
 
         # Resets the state of the environment and returns an initial observation.
-        # rospy.wait_for_service('/gazebo/reset_simulation')
         rospy.wait_for_service('/gazebo/reset_world')
         try:
             #reset_proxy.call()
@@ -172,11 +168,16 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         except (rospy.ServiceException) as e:
             print ("/gazebo/unpause_physics service call failed")
 
-        #read laser data
-        data = self.data
-        while data is None:
-            data = self.data
+        # Read pose and collision data
+        p_data = self.pose_data
+        while p_data is None:
+            p_data = self.pose_data
 
+        c_data = self.collision_data
+        while c_data is None:
+            c_data = self.collision_data
+
+        # Pause simulation
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
             #resp_pause = pause.call()
@@ -184,7 +185,6 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        #state = self.discretize_observation(data,5)
-        state, succeeded, failed = self.process_pose(data, 1)
+        state, succeeded, failed = self.process_pose_and_collision(p_data, 1, c_data)
 
         return state
