@@ -3,13 +3,17 @@ import rospy
 import roslaunch
 import time
 import numpy as np
+import math
 
 from gym import utils, spaces
 from gym_gazebo.envs import gazebo_env
 from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Vector3
 from std_srvs.srv import Empty
 
 from sensor_msgs.msg import LaserScan
+from gazebo_msgs.msg import ModelStates
 
 from gym.utils import seeding
 
@@ -50,12 +54,11 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env(gazebo_env.GazeboEnv):
                 index = i
         if index == -1:
             print("ERROR: Can't find robot")
-            return [0, 0, 0, 0, 0, 0, 0], False, False
+            return [0, 0, 0], False, False
 
         # Get robot pose
         robot_pose = data.pose[index]
-        robot_position = robot_pose.position
-        robot_orientation = robot_pose.orientation
+        robot_twist = data.twist[index]
 
         # print("b. Processing position")
         position = []
@@ -68,6 +71,13 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env(gazebo_env.GazeboEnv):
         q_z = robot_pose.orientation.z
         yaw = math.atan2(2*(q_w*q_z+q_x*q_y), 1 - 2*(q_y*q_y + q_z*q_z))
         position.append(round(yaw, num_decimal_places))
+
+        # Get speeds
+        v_x = robot_twist.linear.x
+        v_y = robot_twist.linear.y
+        a_z = robot_twist.angular.z
+
+        # Check for end cases
         success = False
         fail = False
         if (robot_pose.position.y > 2):
@@ -75,6 +85,9 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env(gazebo_env.GazeboEnv):
         elif (robot_pose.position.y < 0.2):
             fail = True
         elif (robot_pose.position.x > 0.4 or robot_pose.position.x < -0.4):
+            fail = True
+        elif (abs(v_x) + abs(v_y) + abs(a_z) < 0.1):
+            print("NOT MOVING, SO FAIL")
             fail = True
 
         return position, success, fail
@@ -90,7 +103,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env(gazebo_env.GazeboEnv):
         except (rospy.ServiceException) as e:
             print ("/gazebo/unpause_physics service call failed")
 
-        max_ang_speed = 0.3
+        max_ang_speed = 0.5
         ang_vel = (action-10)*max_ang_speed*0.1 #from (-0.33 to + 0.33)
 
         vel_cmd = Twist()
@@ -111,14 +124,22 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env(gazebo_env.GazeboEnv):
 
         state, succeeded, failed = self.process_pose(data, 1)
         done = (succeeded or failed)
-        if not done:
-            # Straight reward = 5, Max angle reward = 0.5
-            reward = round(15*(max_ang_speed - abs(ang_vel) +0.0335), 2)
-            print ("Action : "+str(action)+" Ang_vel : "+str(ang_vel)+" reward="+str(reward))
-        elif succeeded:
-            reward = 200
+
+        # Want robot to move to the end of the track at the center (y = 2, x = 0)
+        if succeeded:
+            # Reward based on how far it got and how close it was to the center
+            reward = 100 * state[1] + (100 - abs(state[0]) * 250)
         elif failed:
-            reward = -200
+            # Punish based on how far it is from goal
+            reward = -200 + state[1]*100
+        elif state[1] > 1:
+            # Reward more for moving forward and staying in center
+            reward = 5 * state[1] - 5 * abs(state[0])
+        else:
+            # Reward for moving forward and staying in center
+            reward = state[1] - abs(state[0])
+        print ("Action : "+str(action)+" Ang_vel : "+str(ang_vel)+" reward="+str(reward))
+
 
         return np.asarray(state), reward, done, {}
 
