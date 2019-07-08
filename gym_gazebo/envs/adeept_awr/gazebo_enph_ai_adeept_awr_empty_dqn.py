@@ -14,53 +14,54 @@ from std_srvs.srv import Empty
 
 from sensor_msgs.msg import LaserScan
 from gazebo_msgs.msg import ModelStates
+from std_msgs.msg import Bool
 
 from gym.utils import seeding
 
 class Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env(gazebo_env.GazeboEnv):
 
-    def callback(self, data):
-        self.data = data
+    def pose_callback(self, data):
+        self.pose_data = data
+
+    def collision_callback(self, data):
+        self.collision_data = data
 
     def __init__(self):
         # Launch the simulation with the given launchfile name
         gazebo_env.GazeboEnv.__init__(self, "/home/tylerlum/gym-gazebo/gym_gazebo/envs/installation/catkin_ws/src/enph_ai/launch/sim.launch")
+
+        # Setup publisher for velocity
         self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
+
+        # Setup simulation services
         self.unpause = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
         self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
-        # self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
         self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_world', Empty)
 
-        self.pose_sub = rospy.Subscriber('/gazebo/model_states', ModelStates, self.callback)
-        self.data = None
+        # Setup subcription to position and collision
+        self.pose_sub = rospy.Subscriber('/gazebo/model_states', ModelStates, self.pose_callback)
+        self.collision_sub = rospy.Subscriber('/isHit', Bool, self.collision_callback)
+        self.pose_data = None
+        self.collision_data = None
 
+        # Setup simulation parameters
         self.reward_range = (-np.inf, np.inf)
-
         self._seed()
 
-    def calculate_observation(self,data):
-        min_range = 0.2
-        done = False
-        for i, item in enumerate(data.ranges):
-            if (min_range > data.ranges[i] > 0):
-                done = True
-        return data.ranges,done
-
-    def process_pose(self,data,num_decimal_places):
+    def process_pose_and_collision(self,p_data,num_decimal_places,c_data):
         # Find index of robot
         index = -1
-        for i in range(0, len(data.name)):
-            if data.name[i] == 'robot':
+        for i in range(0, len(p_data.name)):
+            if p_data.name[i] == 'robot':
                 index = i
         if index == -1:
             print("ERROR: Can't find robot")
             return [0, 0, 0], False, False
 
         # Get robot pose
-        robot_pose = data.pose[index]
-        robot_twist = data.twist[index]
+        robot_pose = p_data.pose[index]
 
-        # print("b. Processing position")
+        # Setup position state return value
         position = []
         position.append(round(robot_pose.position.x, num_decimal_places))
         position.append(round(robot_pose.position.y, num_decimal_places))
@@ -72,22 +73,13 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env(gazebo_env.GazeboEnv):
         yaw = math.atan2(2*(q_w*q_z+q_x*q_y), 1 - 2*(q_y*q_y + q_z*q_z))
         position.append(round(yaw, num_decimal_places))
 
-        # Get speeds
-        v_x = robot_twist.linear.x
-        v_y = robot_twist.linear.y
-        a_z = robot_twist.angular.z
-
         # Check for end cases
         success = False
         fail = False
         if (robot_pose.position.y > 2):
+            # Succeeds if reaches the end
             success = True
-        elif (robot_pose.position.y < 0.2):
-            fail = True
-        elif (robot_pose.position.x > 0.4 or robot_pose.position.x < -0.4):
-            fail = True
-        elif (abs(v_x) + abs(v_y) + abs(a_z) < 0.1):
-            print("NOT MOVING, SO FAIL")
+        elif c_data.data:
             fail = True
 
         return position, success, fail
@@ -97,12 +89,15 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env(gazebo_env.GazeboEnv):
         return [seed]
 
     def step(self, action):
+
+        # Unpause simulation to make observation
         rospy.wait_for_service('/gazebo/unpause_physics')
         try:
             self.unpause()
         except (rospy.ServiceException) as e:
             print ("/gazebo/unpause_physics service call failed")
 
+        # Setup velocity, with const forward speed and varying angular speed
         max_ang_speed = 0.5
         ang_vel = (action-10)*max_ang_speed*0.1 #from (-0.33 to + 0.33)
 
@@ -111,18 +106,23 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env(gazebo_env.GazeboEnv):
         vel_cmd.angular.z = ang_vel
         self.vel_pub.publish(vel_cmd)
 
-        data = self.data
-        while data is None:
-            data = self.data
+        # Read pose and collision data
+        p_data = self.pose_data
+        while p_data is None:
+            p_data = self.pose_data
 
+        c_data = self.collision_data
+        while c_data is None:
+            c_data = self.collision_data
+
+        # Pause simulation
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
-            #resp_pause = pause.call()
             self.pause()
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        state, succeeded, failed = self.process_pose(data, 1)
+        state, succeeded, failed = self.process_pose_and_collision(p_data, 1, c_data)
         done = (succeeded or failed)
 
         # Want robot to move to the end of the track at the center (y = 2, x = 0)
@@ -145,32 +145,35 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_NN_Env(gazebo_env.GazeboEnv):
 
     def reset(self):
         # Resets the state of the environment and returns an initial observation.
-        rospy.wait_for_service('/gazebo/reset_simulation')
+        rospy.wait_for_service('/gazebo/reset_world')
         try:
-            #reset_proxy.call()
             self.reset_proxy()
         except (rospy.ServiceException) as e:
-            print ("/gazebo/reset_simulation service call failed")
+            print ("/gazebo/reset_world service call failed")
 
         # Unpause simulation to make observation
         rospy.wait_for_service('/gazebo/unpause_physics')
         try:
-            #resp_pause = pause.call()
             self.unpause()
         except (rospy.ServiceException) as e:
             print ("/gazebo/unpause_physics service call failed")
 
-        data = self.data
-        while data is None:
-            data = self.data
+        # Read pose and collision data
+        p_data = self.pose_data
+        while p_data is None:
+            p_data = self.pose_data
 
+        c_data = self.collision_data
+        while c_data is None:
+            c_data = self.collision_data
+
+        # Pause simulation
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
-            #resp_pause = pause.call()
             self.pause()
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        state, succeeded, failed = self.process_pose(data, 1)
+        state, succeeded, failed = self.process_pose_and_collision(p_data, 1, c_data)
 
         return np.asarray(state)
