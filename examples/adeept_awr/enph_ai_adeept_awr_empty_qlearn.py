@@ -36,11 +36,11 @@ if __name__ == '__main__':
 
     # Setup qlearning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
-                    alpha=0.2, gamma=0.8, epsilon=0.9)
+                    alpha=0.2, gamma=0.8, epsilon=1)
 
     initial_epsilon = qlearn.epsilon
 
-    epsilon_discount = 0.9986
+    epsilon_discount = 0.9992
 
     # Load parameters, move file before running if not wanted
     filename = 'objs.pkl'
@@ -62,7 +62,7 @@ if __name__ == '__main__':
         observation = env.reset()
 
         # Decrease chance of random action
-        if qlearn.epsilon > 0.05:
+        if qlearn.epsilon > 0.01:
             qlearn.epsilon *= epsilon_discount
 
         #render() #defined above, not env.render()

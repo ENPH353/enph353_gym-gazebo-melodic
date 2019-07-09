@@ -98,20 +98,22 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         except (rospy.ServiceException) as e:
             print ("/gazebo/unpause_physics service call failed")
 
+        forward_speed = 0.8
+        angular_speed = 0.3
         if action == 0: #FORWARD
             vel_cmd = Twist()
-            vel_cmd.linear.x = 0.8
+            vel_cmd.linear.x = forward_speed
             vel_cmd.angular.z = 0.0
             self.vel_pub.publish(vel_cmd)
         elif action == 1: #LEFT
             vel_cmd = Twist()
             vel_cmd.linear.x = 0
-            vel_cmd.angular.z = 2
+            vel_cmd.angular.z = angular_speed
             self.vel_pub.publish(vel_cmd)
         elif action == 2: #RIGHT
             vel_cmd = Twist()
             vel_cmd.linear.x = 0
-            vel_cmd.angular.z = -2
+            vel_cmd.angular.z = -angular_speed
             self.vel_pub.publish(vel_cmd)
 
         # Read pose and collision data
@@ -126,16 +128,15 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         # Pause simulation
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
-            #resp_pause = pause.call()
             self.pause()
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        state, succeeded, failed = self.process_pose_and_collision(p_data, 1, c_data)
+        state, succeeded, failed = self.process_pose_and_collision(p_data, 2, c_data)
 
         # Reward function
         if succeeded:
-            reward = 500
+            reward = 5000
         elif failed:
             reward = -100
         else:
@@ -146,7 +147,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         else:
             reward += 1
 
-        reward += state[1]
+        reward += state[1] * state[1] * 10
         return state, reward, (succeeded or failed), {}
 
     def reset(self):
@@ -154,16 +155,13 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         # Resets the state of the environment and returns an initial observation.
         rospy.wait_for_service('/gazebo/reset_world')
         try:
-            #reset_proxy.call()
             self.reset_proxy()
         except (rospy.ServiceException) as e:
-            # print ("/gazebo/reset_simulation service call failed")
             print ("/gazebo/reset_world service call failed")
 
         # Unpause simulation to make observation
         rospy.wait_for_service('/gazebo/unpause_physics')
         try:
-            #resp_pause = pause.call()
             self.unpause()
         except (rospy.ServiceException) as e:
             print ("/gazebo/unpause_physics service call failed")
@@ -180,11 +178,10 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         # Pause simulation
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
-            #resp_pause = pause.call()
             self.pause()
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        state, succeeded, failed = self.process_pose_and_collision(p_data, 1, c_data)
+        state, succeeded, failed = self.process_pose_and_collision(p_data, 2, c_data)
 
         return state
