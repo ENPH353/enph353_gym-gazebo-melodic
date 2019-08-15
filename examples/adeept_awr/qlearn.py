@@ -37,6 +37,8 @@ class QLearn:
             # add random values to all the actions, recalculate maxQ
             q = [q[i] + random.random() * mag - .5 * mag for i in range(len(self.actions))] 
             maxQ = max(q)
+            ## FIX
+            q = [maxQ for a in self.actions]
 
         count = q.count(maxQ)
         # In case there're several state-action max values 

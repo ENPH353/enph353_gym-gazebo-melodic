@@ -26,32 +26,36 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
     def __init__(self):
         # Launch the simulation with the given launchfile name
+        print("INIT")
         gazebo_env.GazeboEnv.__init__(self, "/home/tylerlum/gym-gazebo/gym_gazebo/envs/installation/catkin_ws/src/enph_ai/launch/sim.launch")
 
         # Setup publisher for velocity
         self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
+        print("**********************************************************setup vel_pub")
 
         # Setup simulation services
         self.unpause = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
         self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
         self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_world', Empty)
+        print("**********************************************************setup simulation services")
 
         # Setup subscription to position and collision
         self.pose_sub = rospy.Subscriber('/gazebo/model_states', ModelStates, self.pose_callback)
-        self.collision_sub = rospy.Subscriber('/isHit', Bool, self.collision_callback)
+        # self.collision_sub = rospy.Subscriber('/isHit', Bool, self.collision_callback)
         self.pose_data = None
         self.collision_data = None
+        print("**********************************************************setup subscription")
 
         # Setup simulation parameters
         self.action_space = spaces.Discrete(3) #F,L,R
         self.reward_range = (-np.inf, np.inf)
         self._seed()
 
-    def process_pose_and_collision(self,p_data,num_decimal_places,c_data):
+    def process_pose_and_collision(self,p_data,num_decimal_places):
         # Find index of robot
         index = -1
         for i in range(0, len(p_data.name)):
-            if p_data.name[i] == 'robot':
+            if p_data.name[i] == 'adeept_car':
                 index = i
         if index == -1:
             print("ERROR: Can't find robot")
@@ -76,12 +80,12 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         # Check for end condition
         success = False
         fail = False
-        if (robot_pose.position.y > 2):
-            # Succeeds if reaches the end
-            success = True
-        elif c_data.data:
-            # Fails if it collides with wall
-            fail = True
+        # if (robot_pose.position.y > 2):
+        #     # Succeeds if reaches the end
+        #     success = True
+        # elif c_data.data:
+        #     # Fails if it collides with wall
+        #     fail = True
 
         return state, success, fail
 
@@ -100,18 +104,18 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
         if action == 0: #FORWARD
             vel_cmd = Twist()
-            vel_cmd.linear.x = 0.8
+            vel_cmd.linear.x = 3
             vel_cmd.angular.z = 0.0
             self.vel_pub.publish(vel_cmd)
         elif action == 1: #LEFT
             vel_cmd = Twist()
             vel_cmd.linear.x = 0
-            vel_cmd.angular.z = 2
+            vel_cmd.angular.z = 0
             self.vel_pub.publish(vel_cmd)
         elif action == 2: #RIGHT
             vel_cmd = Twist()
             vel_cmd.linear.x = 0
-            vel_cmd.angular.z = -2
+            vel_cmd.angular.z = 0
             self.vel_pub.publish(vel_cmd)
 
         # Read pose and collision data
@@ -119,9 +123,9 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         while p_data is None:
             p_data = self.pose_data
 
-        c_data = self.collision_data
-        while c_data is None:
-            c_data = self.collision_data
+        # c_data = self.collision_data
+        # while c_data is None:
+        #     c_data = self.collision_data
 
         # Pause simulation
         rospy.wait_for_service('/gazebo/pause_physics')
@@ -131,7 +135,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        state, succeeded, failed = self.process_pose_and_collision(p_data, 1, c_data)
+        state, succeeded, failed = self.process_pose_and_collision(p_data, 1)
 
         # Reward function
         if succeeded:
@@ -141,12 +145,12 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         else:
             reward = 0
 
-        if action == 0:
-            reward += 5
-        else:
-            reward += 1
+        # if action == 0:
+        #     reward += 5
+        # else:
+        #     reward += 1
 
-        reward += state[1]
+        reward += 0.25 - (state[0]-0.5)**2
         return state, reward, (succeeded or failed), {}
 
     def reset(self):
@@ -173,9 +177,9 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         while p_data is None:
             p_data = self.pose_data
 
-        c_data = self.collision_data
-        while c_data is None:
-            c_data = self.collision_data
+        #c_data = self.collision_data
+        #while c_data is None:
+        #    c_data = self.collision_data
 
         # Pause simulation
         rospy.wait_for_service('/gazebo/pause_physics')
@@ -185,6 +189,6 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        state, succeeded, failed = self.process_pose_and_collision(p_data, 1, c_data)
+        state, succeeded, failed = self.process_pose_and_collision(p_data, 1)
 
         return state

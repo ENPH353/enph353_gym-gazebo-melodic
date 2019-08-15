@@ -13,6 +13,13 @@ import liveplot
 import os.path
 from os import path
 
+import inspect
+
+def lineno():
+    """Returns the current line number in our program."""
+    return inspect.currentframe().f_back.f_lineno
+
+
 def render():
     render_skip = 0 #Skip first X episodes.
     render_interval = 50 #Show render Every Y episodes.
@@ -36,11 +43,11 @@ if __name__ == '__main__':
 
     # Setup qlearning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
-                    alpha=0.2, gamma=0.8, epsilon=0.9)
+                    alpha=0.2, gamma=0.8, epsilon=0)
 
     initial_epsilon = qlearn.epsilon
 
-    epsilon_discount = 0.9986
+    epsilon_discount = 0.9956
 
     # Load parameters, move file before running if not wanted
     filename = 'objs.pkl'
