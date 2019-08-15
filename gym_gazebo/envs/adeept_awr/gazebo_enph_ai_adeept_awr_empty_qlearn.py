@@ -70,9 +70,9 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         # HoughLinesP to get the lines, adjust params for performance
         rho = 1  # distance resolution in pixels of the Hough grid
         theta = np.pi / 180  # angular resolution in radians of the Hough grid
-        threshold = 15  # minimum number of votes (intersections in Hough grid cell)
-        min_line_length = 50  # minimum number of pixels making up a line
-        max_line_gap = 20  # maximum gap in pixels between connectable line segments
+        threshold = 5  # minimum number of votes (intersections in Hough grid cell)
+        min_line_length = 100  # minimum number of pixels making up a line
+        max_line_gap = 25  # maximum gap in pixels between connectable line segments
         line_image = np.copy(img) * 0  # creating a blank to draw lines on
 
         # Run Hough on edge detected image
@@ -80,9 +80,32 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         lines = cv2.HoughLinesP(edges, rho, theta, threshold, np.array([]),
                             min_line_length, max_line_gap)
 
-        for line in lines:
-            for x1,y1,x2,y2 in line:
-                cv2.line(line_image,(x1,y1),(x2,y2),(255,0,0),5)
+        if not lines is None:
+            for line in lines:
+                for x1,y1,x2,y2 in line:
+                    cv2.line(line_image,(x1,y1),(x2,y2),(255,0,0),5)
+
+        # Check if any lines have close slopes
+        slopes = []
+        if not lines is None:
+            for line in lines:
+                for x1, y1, x2, y2 in line:
+                    if not x2 - x1 == 0:
+                        slopes.append(float(y2-y1) / float(x2-x1))
+        print(slopes)
+
+        indices = []
+        for i, slope_i in enumerate(slopes):
+            for j, slope_j in enumerate(slopes):
+                if not i == j and i < j:
+                    if abs(slope_i - slope_j) < 0.02 and not slope_i == 0.0:
+                        indices.append((i, j))
+        print(indices)
+
+
+
+
+        print("__________________________________")
 
         # Draw the lines on the image
         lines_edges = cv2.addWeighted(img, 0.8, line_image, 1, 0)
@@ -110,18 +133,18 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
         if action == 0: #FORWARD
             vel_cmd = Twist()
-            vel_cmd.linear.x = 3
+            vel_cmd.linear.x = 0
             vel_cmd.angular.z = 0.0
             self.vel_pub.publish(vel_cmd)
         elif action == 1: #LEFT
             vel_cmd = Twist()
             vel_cmd.linear.x = 0
-            vel_cmd.angular.z = 1
+            vel_cmd.angular.z = 0
             self.vel_pub.publish(vel_cmd)
         elif action == 2: #RIGHT
             vel_cmd = Twist()
             vel_cmd.linear.x = 0
-            vel_cmd.angular.z = -1
+            vel_cmd.angular.z = 0
             self.vel_pub.publish(vel_cmd)
 
         # Read image data
