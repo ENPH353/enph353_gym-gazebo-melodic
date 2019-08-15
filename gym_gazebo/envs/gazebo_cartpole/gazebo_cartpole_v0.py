@@ -28,8 +28,6 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
         self.x_threshold = 15
 
         self._pub = rospy.Publisher('/cart_pole_controller/command', Float64, queue_size=1)
-        # self._sub = rospy.Subscriber('/joint_states', JointState, self.observation_callback)
-        # self._sub = rospy.Subscriber('/cart_pole/joint_states', JointState, self.observation_callback)
 
         # Gazebo specific services to start/stop its behavior and
         # facilitate the overall RL environment
@@ -108,9 +106,11 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
         # except (rospy.ServiceException) as e:
         #     print ("/gazebo/pause_physics service call failed")
 
-        state = [round(self.data.position[1], self.num_dec_places), round(self.data.velocity[1], 1), angle, round(self.data.velocity[0], 1)]
-
+        state = [round(self.data.position[1], self.num_dec_places), round(self.data.velocity[1], 1), angle, round(self.data.velocity[0], 0)]
         x, x_dot, theta, theta_dot = state
+        # Limit state space
+        state[0] = 0
+        state[1] = 0
 
         done =  x < -self.x_threshold \
                 or x > self.x_threshold \
@@ -180,7 +180,6 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
                 pass
         angle = round(math.atan(math.tan(self.data.position[0])), self.num_dec_places)
         state = [round(self.data.position[1], self.num_dec_places), round(self.data.velocity[1], 1), angle, round(self.data.velocity[0], 1)]
-        # state = [self.data.position[1], 0, self.data.position[0], 0]
 
         self.steps_beyond_done = None
         self.current_vel = 0

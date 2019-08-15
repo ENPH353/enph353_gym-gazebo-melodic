@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     # Setup qlearning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
-                    alpha=0.2, gamma=0.8, epsilon=0.025)
+                    alpha=0.2, gamma=0.8, epsilon=1)
 
     initial_epsilon = qlearn.epsilon
 
@@ -57,6 +57,7 @@ if __name__ == '__main__':
     dt_string = now.strftime("%d-%m-%Y=%H-%M-%S")
     print("**************date and time =", dt_string)
     filename = dt_string + '.pkl'
+    filename = "15-08-2019=09-46-33.pkl"
     if path.exists(filename):
         qlearn.loadParams(filename)
         print("**************Loading params from {}".format(filename))
@@ -112,7 +113,7 @@ if __name__ == '__main__':
                 reward1 = qlearn.q[(state, 1)]
             else:
                 reward1 = 1
-            print("Angle: {}\nAngular: {}\nReward for forward: {}.\nReward for backward: {}\n******".format(angle, angular_v, reward1, reward0))
+            #print("Angle: {}\nAngular: {}\nReward for forward: {}.\nReward for backward: {}\n******".format(angle, angular_v, reward1, reward0))
 
             env._flush(force=True)
 
