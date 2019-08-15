@@ -53,16 +53,41 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
     def process_image(self, image_data):
 
         try:
-          cv_image = self.bridge.imgmsg_to_cv2(image_data, "bgr8")
+          img = self.bridge.imgmsg_to_cv2(image_data, "bgr8")
         except CvBridgeError as e:
           print(e)
 
-        (rows,cols,channels) = cv_image.shape
-        if cols > 60 and rows > 60 :
-          cv2.circle(cv_image, (50,50), 10, 255)
+        # Get gray image and process GaussianBlur
+        gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+        kernel_size = 5
+        blur_gray = cv2.GaussianBlur(gray,(kernel_size, kernel_size),0)
 
-        print("{}{}{}".format(rows, cols, channels))
-        cv2.imshow("Image window", cv_image)
+        # Process edge detection with Canny
+        low_threshold = 50
+        high_threshold = 150
+        edges = cv2.Canny(blur_gray, low_threshold, high_threshold)
+
+        # HoughLinesP to get the lines, adjust params for performance
+        rho = 1  # distance resolution in pixels of the Hough grid
+        theta = np.pi / 180  # angular resolution in radians of the Hough grid
+        threshold = 15  # minimum number of votes (intersections in Hough grid cell)
+        min_line_length = 50  # minimum number of pixels making up a line
+        max_line_gap = 20  # maximum gap in pixels between connectable line segments
+        line_image = np.copy(img) * 0  # creating a blank to draw lines on
+
+        # Run Hough on edge detected image
+        # Output "lines" is an array containing endpoints of detected line segments
+        lines = cv2.HoughLinesP(edges, rho, theta, threshold, np.array([]),
+                            min_line_length, max_line_gap)
+
+        for line in lines:
+            for x1,y1,x2,y2 in line:
+                cv2.line(line_image,(x1,y1),(x2,y2),(255,0,0),5)
+
+        # Draw the lines on the image
+        lines_edges = cv2.addWeighted(img, 0.8, line_image, 1, 0)
+
+        cv2.imshow("Image window", lines_edges)
         cv2.waitKey(3)
         state = []
         success = False
