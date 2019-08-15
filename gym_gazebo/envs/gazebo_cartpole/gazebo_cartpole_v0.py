@@ -55,6 +55,9 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
         self.observation_space = spaces.Box(-high, high)
         rospy.Subscriber("/cart_pole/joint_states", JointState, self.callback)
 
+        # Round state to decrease state space size
+        self.num_dec_places = 2
+
     def callback(self, data):
         self.data = data
 
@@ -77,7 +80,7 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
                     self.data = rospy.wait_for_message('/cart_pole/joint_states', JointState, timeout=5)
                 except:
                     pass
-        angle = math.atan(math.tan(self.data.position[0]))
+        angle = round(math.atan(math.tan(self.data.position[0])), self.num_dec_places)
 
         # rospy.wait_for_service('/gazebo/unpause_physics')
         # try:
@@ -98,13 +101,6 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
         # self.set_ros_master_uri();
         self._pub.publish(action_msg)
 
-        # data = None
-        # while data is None:
-        #     try:
-        #         data = rospy.wait_for_message('/cart_pole/joint_states', JointState, timeout=5)
-        #     except:
-        #         pass
-
         # rospy.wait_for_service('/gazebo/pause_physics')
         # try:
         #     #resp_pause = pause.call()
@@ -112,8 +108,7 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
         # except (rospy.ServiceException) as e:
         #     print ("/gazebo/pause_physics service call failed")
 
-        state = [self.data.position[1], self.data.velocity[1], angle, self.data.velocity[0]]
-        # state = [self.data.position[1], 0, self.data.position[0], 0]
+        state = [round(self.data.position[1], self.num_dec_places), round(self.data.velocity[1], 1), angle, round(self.data.velocity[0], 1)]
 
         x, x_dot, theta, theta_dot = state
 
@@ -183,8 +178,8 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
                 self.data = rospy.wait_for_message('/cart_pole/joint_states', JointState, timeout=5)
             except:
                 pass
-        angle = math.atan(math.tan(self.data.position[0]))
-        state = [self.data.position[1], self.data.velocity[1], angle, self.data.velocity[0]]
+        angle = round(math.atan(math.tan(self.data.position[0])), self.num_dec_places)
+        state = [round(self.data.position[1], self.num_dec_places), round(self.data.velocity[1], 1), angle, round(self.data.velocity[0], 1)]
         # state = [self.data.position[1], 0, self.data.position[0], 0]
 
         self.steps_beyond_done = None

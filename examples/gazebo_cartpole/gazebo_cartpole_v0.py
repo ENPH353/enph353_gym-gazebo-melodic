@@ -43,23 +43,29 @@ if __name__ == '__main__':
 
     # Setup qlearning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
-                    alpha=0.2, gamma=0.8, epsilon=0)
+                    alpha=0.2, gamma=0.8, epsilon=0.025)
 
     initial_epsilon = qlearn.epsilon
 
-    epsilon_discount = 0.9956
+    epsilon_discount = 0.999956
 
     # Load parameters, move file before running if not wanted
-    filename = 'objs.pkl'
+    from datetime import datetime
+    now = datetime.now()
+
+    # dd/mm/YY H:M:S
+    dt_string = now.strftime("%d-%m-%Y=%H-%M-%S")
+    print("**************date and time =", dt_string)
+    filename = dt_string + '.pkl'
     if path.exists(filename):
         qlearn.loadParams(filename)
-        print("Loading params from {}".format(filename))
+        print("**************Loading params from {}".format(filename))
     else:
-        print("{} not found. Starting fresh.".format(filename))
+        print("**************{} not found. Starting fresh.".format(filename))
 
     # Setup for looping
     start_time = time.time()
-    total_episodes = 10000
+    total_episodes = 100000
     highest_reward = 0
 
     for x in range(total_episodes):
@@ -96,6 +102,17 @@ if __name__ == '__main__':
             nextState = ''.join(map(str, observation))
 
             qlearn.learn(state, action, reward, nextState)
+            angle = observation[2]
+            angular_v = observation[3]
+            if (state, 0) in qlearn.q:
+                reward0 = qlearn.q[(state, 0)]
+            else:
+                reward0 = 0
+            if (state, 1) in qlearn.q:
+                reward1 = qlearn.q[(state, 1)]
+            else:
+                reward1 = 1
+            print("Angle: {}\nAngular: {}\nReward for forward: {}.\nReward for backward: {}\n******".format(angle, angular_v, reward1, reward0))
 
             env._flush(force=True)
 
