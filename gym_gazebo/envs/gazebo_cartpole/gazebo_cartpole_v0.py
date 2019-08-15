@@ -23,35 +23,34 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
         # Launch the simulation with the given launchfile name
         gazebo_env.GazeboEnv.__init__(self, "GazeboCartPole_v0.launch")
 
-        # Angle at which to fail the episode
+        # Define end conditions
         self.theta_threshold_radians = 12 * 2 * math.pi / 360
         self.x_threshold = 15
 
+        # Setup pub/sub for state/action
         self._pub = rospy.Publisher('/cart_pole_controller/command', Float64, queue_size=1)
+        rospy.Subscriber("/cart_pole/joint_states", JointState, self.callback)
 
         # Gazebo specific services to start/stop its behavior and
         # facilitate the overall RL environment
         self.unpause = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
         self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
-        self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
         self.set_link = rospy.ServiceProxy('/gazebo/set_link_state', SetLinkState)
-
         rospy.wait_for_service('/gazebo/set_link_state')
 
-        # Seed the environment
+        # Setup the environment
         self._seed()
-        self.steps_beyond_done = None
-
+        self.action_space = spaces.Discrete(2)
         high = np.array([
             self.x_threshold * 2,
             np.finfo(np.float32).max,
             self.theta_threshold_radians * 2,
             np.finfo(np.float32).max])
-
-        self.current_vel = 0
-        self.action_space = spaces.Discrete(2)
         self.observation_space = spaces.Box(-high, high)
-        rospy.Subscriber("/cart_pole/joint_states", JointState, self.callback)
+
+        # State
+        self.current_vel = 0
+        self.data = None
 
         # Round state to decrease state space size
         self.num_dec_places = 2
@@ -64,124 +63,94 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
         return [seed]
 
     def step(self, action):
-
+        # Unpause simulation to make observations
         rospy.wait_for_service('/gazebo/unpause_physics')
         try:
-            #resp_pause = pause.call()
             self.unpause()
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        if self.data==None:
-            while self.data is None:
-                try:
-                    self.data = rospy.wait_for_message('/cart_pole/joint_states', JointState, timeout=5)
-                except:
-                    pass
-        angle = round(math.atan(math.tan(self.data.position[0])), self.num_dec_places)
+        # Wait for data
+        data = self.data
+        while data is None:
+            data = self.data
 
-        # rospy.wait_for_service('/gazebo/unpause_physics')
+        # Pause
+        # rospy.wait_for_service('/gazebo/pause_physics')
         # try:
-        #     self.unpause()
+        #     self.pause()
         # except (rospy.ServiceException) as e:
         #     print ("/gazebo/unpause_physics service call failed")
 
+        # Take action
         if action > 0.5:
-            self.current_vel = self.current_vel + 1
+            self.current_vel = 1
         else:
-            self.current_vel = self.current_vel - 1
-
-        # print(os.environ["ROS_MASTER_URI"] )
-        # print("action", action)
+            self.current_vel = -1
 
         action_msg = Float64()
         action_msg.data = self.current_vel
-        # self.set_ros_master_uri();
         self._pub.publish(action_msg)
 
-        # rospy.wait_for_service('/gazebo/pause_physics')
-        # try:
-        #     #resp_pause = pause.call()
-        #     self.pause()
-        # except (rospy.ServiceException) as e:
-        #     print ("/gazebo/pause_physics service call failed")
+        # Define state
+        x = self.data.position[1]
+        x_dot = self.data.velocity[1]
+        theta = math.atan(math.tan(self.data.position[0]))
+        theta_dot = self.data.velocity[0]
+        state = [round(x, 2), round(x_dot, 1), round(theta, 2), round(theta_dot, 1)]
 
-        state = [round(self.data.position[1], self.num_dec_places), round(self.data.velocity[1], 1), angle, round(self.data.velocity[0], 0)]
-        x, x_dot, theta, theta_dot = state
         # Limit state space
         state[0] = 0
         state[1] = 0
 
+        # Check for end condition
         done =  x < -self.x_threshold \
                 or x > self.x_threshold \
                 or theta < -self.theta_threshold_radians \
                 or theta > self.theta_threshold_radians
         done = bool(done)
 
-        # if done:
-        #     print("x: ", x,  " theta: ", theta*180/3.1416 )
-
         if not done:
             reward = 1.0
-        elif self.steps_beyond_done is None:
-            # Pole just fell!
-            self.steps_beyond_done = 0
-            reward = 1.0
         else:
-            if self.steps_beyond_done == 0:
-                logger.warning("You are calling 'step()' even though this environment has already returned done = True. You should always call 'reset()' once you receive 'done = True' -- any further steps are undefined behavior.")
-            self.steps_beyond_done += 1
-            reward = 0.0
-
-        # # Unpause simulation to make observation
-        rospy.wait_for_service('/gazebo/pause_physics')
-        try:
-            #resp_pause = pause.call()
-            self.pause()
-        except (rospy.ServiceException) as e:
-            print ("/gazebo/unpause_physics service call failed")
-
+            reward = 0
 
         return state, reward, done, {}
 
     def reset(self):
-        # # Resets the state of the environment and returns an initial observation.
-        # rospy.wait_for_service('/gazebo/reset_simulation')
-        # try:
-        #     self.reset_proxy()
-        # except (rospy.ServiceException) as e:
-        #     print ("/gazebo/reset_simulation service call failed")
-
-        # # Unpause simulation to make observation
-        rospy.wait_for_service('/gazebo/pause_physics')
-        try:
-            #resp_pause = pause.call()
-            self.pause()
-        except (rospy.ServiceException) as e:
-            print ("/gazebo/unpause_physics service call failed")
-
+        # Reset world
         rospy.wait_for_service('/gazebo/set_link_state')
         self.set_link(LinkState(link_name='pole'))
         self.set_link(LinkState(link_name='cart'))
 
+        # Unpause simulation to make observation
         rospy.wait_for_service('/gazebo/unpause_physics')
         try:
-            #resp_pause = pause.call()
             self.unpause()
+        except (rospy.ServiceException) as e:
+            print ("/gazebo/unpause_physics service call failed")
+
+        # Wait for data
+        data = self.data
+        while data is None:
+            data = self.data
+
+        # Pause simulation
+        rospy.wait_for_service('/gazebo/pause_physics')
+        try:
+            self.pause()
         except (rospy.ServiceException) as e:
             print ("/gazebo/pause_physics service call failed")
 
-        #read laser data
-        self.data = None
-        while self.data is None:
-            try:
-                self.data = rospy.wait_for_message('/cart_pole/joint_states', JointState, timeout=5)
-            except:
-                pass
-        angle = round(math.atan(math.tan(self.data.position[0])), self.num_dec_places)
-        state = [round(self.data.position[1], self.num_dec_places), round(self.data.velocity[1], 1), angle, round(self.data.velocity[0], 1)]
+        # Process state
+        x = self.data.position[1]
+        x_dot = self.data.velocity[1]
+        theta = math.atan(math.tan(self.data.position[0]))
+        theta_dot = self.data.velocity[0]
+        state = [round(x, 2), round(x_dot, 1), round(theta, 2), round(theta_dot, 1)]
 
-        self.steps_beyond_done = None
-        self.current_vel = 0
+        # Limit state space
+        state[0] = 0
+        state[1] = 0
 
         return state
