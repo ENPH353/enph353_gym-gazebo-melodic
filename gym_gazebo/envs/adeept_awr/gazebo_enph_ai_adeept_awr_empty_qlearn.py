@@ -50,6 +50,8 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         self.reward_range = (-np.inf, np.inf)
         self._seed()
 
+        self.prev_lines = None
+
     def process_image(self, image_data):
 
         try:
@@ -70,10 +72,14 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         (height, width, channels) = image.shape
         import matplotlib.pyplot as plt
         import matplotlib.image as mpimg
+        p1 = int(height * 4 / float(5))
+        p2 = int(height / float(3))
         region_of_interest_vertices = [
+            (0, p1),
             (0, height),
-            (width / 2, height / 2),
             (width, height),
+            (width, p1),
+            (width / 2, p2),
         ]
 
         gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
@@ -107,7 +113,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
             for line in lines:
                 for x1, y1, x2, y2 in line:
                     slope = (y2 - y1) / (x2 - x1) # <-- Calculating the slope.
-                    if math.fabs(slope) < 0.5: # <-- Only consider extreme slope
+                    if math.fabs(slope) < 0.75: # <-- Only consider extreme slope
                         continue
                     if slope <= 0: # <-- If the slope is negative, left group.
                         left_line_x.extend([x1, x2])
@@ -140,11 +146,16 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         else:
             lines = None
 
-        if not lines is None:
-            for line in lines:
-                print(line)
-                x1, y1, x2, y2 = line
-                cv2.line(cropped_image,(x1,y1),(x2,y2),(255,0,0),5)
+        if lines is None and self.prev_lines is None:
+            return [], False, False
+        elif lines is None:
+            lines = self.prev_lines
+
+        self.prev_lines = lines
+        for line in lines:
+            print(line)
+            x1, y1, x2, y2 = line
+            cv2.line(cropped_image,(x1,y1),(x2,y2),(255,0,0),5)
         cv2.imshow("Image window", cropped_image)
         cv2.waitKey(3)
         state = []
