@@ -60,17 +60,10 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         import numpy as np
         import cv2
         def region_of_interest(img, vertices):
-            # Define a blank matrix that matches the image height/width.
             mask = np.zeros_like(img)
-            # Retrieve the number of color channels of the image.
-            channel_count = img.shape[2]
-            # Create a match color with the same color channel counts.
-            match_mask_color = (255,) * channel_count
-        
-            # Fill inside the polygon
+            match_mask_color = 255 # <-- This line altered for grayscale.
+            
             cv2.fillPoly(mask, vertices, match_mask_color)
-        
-            # Returning the image only where mask pixels match
             masked_image = cv2.bitwise_and(img, mask)
             return masked_image
 
@@ -82,68 +75,36 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
             (width / 2, height / 2),
             (width, height),
         ]
+
+        gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        cannyed_image = cv2.Canny(gray_image, 100, 200)
+        # Moved the cropping operation to the end of the pipeline.
         cropped_image = region_of_interest(
-            image,
-            np.array([region_of_interest_vertices], np.int32),
+            cannyed_image,
+            np.array([region_of_interest_vertices], np.int32)
         )
+        #plt.figure()
+        #plt.imshow(cropped_image)
+        #plt.show()
+
         #cv2.imshow("Image window", cropped_image)
         #cv2.waitKey(3)
-        state = []
+        lines = cv2.HoughLinesP(
+            cropped_image,
+            rho=6,
+            theta=np.pi / 60,
+            threshold=160,
+            lines=np.array([]),
+            minLineLength=40,
+            maxLineGap=25
+        )
+        print(lines)
 
-        # Get gray image and process GaussianBlur
-        gray = cv2.cvtColor(cropped_image,cv2.COLOR_BGR2GRAY)
-        kernel_size = 5
-        blur_gray = cv2.GaussianBlur(gray,(kernel_size, kernel_size),0)
-
-        # Process edge detection with Canny
-        low_threshold = 50
-        high_threshold = 150
-        edges = cv2.Canny(blur_gray, low_threshold, high_threshold)
-
-        # HoughLinesP to get the lines, adjust params for performance
-        rho = 1  # distance resolution in pixels of the Hough grid
-        theta = np.pi / 180  # angular resolution in radians of the Hough grid
-        threshold = 5  # minimum number of votes (intersections in Hough grid cell)
-        min_line_length = 100  # minimum number of pixels making up a line
-        max_line_gap = 25  # maximum gap in pixels between connectable line segments
-        line_image = np.copy(cropped_image) * 0  # creating a blank to draw lines on
-
-        # Run Hough on edge detected image
-        # Output "lines" is an array containing endpoints of detected line segments
-        lines = cv2.HoughLinesP(edges, rho, theta, threshold, np.array([]),
-                            min_line_length, max_line_gap)
-
-        if not lines is None:
-            for line in lines:
-                for x1,y1,x2,y2 in line:
-                    cv2.line(line_image,(x1,y1),(x2,y2),(255,0,0),5)
-
-        # Check if any lines have close slopes
-        slopes = []
         if not lines is None:
             for line in lines:
                 for x1, y1, x2, y2 in line:
-                    if not x2 - x1 == 0:
-                        slopes.append(float(y2-y1) / float(x2-x1))
-        print(slopes)
-
-        indices = []
-        for i, slope_i in enumerate(slopes):
-            for j, slope_j in enumerate(slopes):
-                if not i == j and i < j:
-                    if abs(slope_i - slope_j) < 0.02 and not slope_i == 0.0:
-                        indices.append((i, j))
-        print(indices)
-
-
-
-
-        print("__________________________________")
-
-        # Draw the lines on the image
-        lines_edges = cv2.addWeighted(cropped_image, 0.8, line_image, 1, 0)
-
-        cv2.imshow("Image window", lines_edges)
+                    cv2.line(cropped_image,(x1,y1),(x2,y2),(255,0,0),5)
+        cv2.imshow("Image window", cropped_image)
         cv2.waitKey(3)
         state = []
         success = False
