@@ -115,7 +115,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
                     else: # <-- Otherwise, right group.
                         right_line_x.extend([x1, x2])
                         right_line_y.extend([y1, y2])
-        min_y = image.shape[0] * (3 / 5) # <-- Just below the horizon
+        min_y = int(float(image.shape[0]) * float(3) / float(5)) # <-- Just below the horizon
         max_y = image.shape[0] # <-- The bottom of the image
         if len(left_line_x) > 0 and len(left_line_y) > 0 and len(right_line_x) > 0 and len(right_line_y) > 0:
             poly_left = np.poly1d(np.polyfit(
