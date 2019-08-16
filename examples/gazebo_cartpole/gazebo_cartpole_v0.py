@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     # Setup qlearning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
-                    alpha=0.2, gamma=0.8, epsilon=1)
+                    alpha=0.2, gamma=0.8, epsilon=0)
 
     initial_epsilon = qlearn.epsilon
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     dt_string = now.strftime("%d-%m-%Y=%H-%M-%S")
     print("**************date and time =", dt_string)
     filename = dt_string + '.pkl'
-    filename = "15-08-2019=09-46-33.pkl"
+    filename = "15-08-2019=16-28-09.pkl"
     if path.exists(filename):
         qlearn.loadParams(filename)
         print("**************Loading params from {}".format(filename))

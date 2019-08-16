@@ -76,17 +76,17 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
             data = self.data
 
         # Pause
-        # rospy.wait_for_service('/gazebo/pause_physics')
-        # try:
-        #     self.pause()
-        # except (rospy.ServiceException) as e:
-        #     print ("/gazebo/unpause_physics service call failed")
+        rospy.wait_for_service('/gazebo/pause_physics')
+        try:
+            self.pause()
+        except (rospy.ServiceException) as e:
+            print ("/gazebo/unpause_physics service call failed")
 
         # Take action
         if action > 0.5:
-            self.current_vel = 1
+            self.current_vel += 0.2
         else:
-            self.current_vel = -1
+            self.current_vel += -0.2
 
         action_msg = Float64()
         action_msg.data = self.current_vel
@@ -97,7 +97,7 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
         x_dot = self.data.velocity[1]
         theta = math.atan(math.tan(self.data.position[0]))
         theta_dot = self.data.velocity[0]
-        state = [round(x, 2), round(x_dot, 1), round(theta, 2), round(theta_dot, 1)]
+        state = [round(x, 2), round(x_dot, 1), round(theta, 2), round(theta_dot, 0)]
 
         # Limit state space
         state[0] = 0
@@ -115,6 +115,8 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
         else:
             reward = 0
 
+        # Reset data
+        self.data = None
         return state, reward, done, {}
 
     def reset(self):
@@ -147,10 +149,14 @@ class GazeboCartPolev0Env(gazebo_env.GazeboEnv):
         x_dot = self.data.velocity[1]
         theta = math.atan(math.tan(self.data.position[0]))
         theta_dot = self.data.velocity[0]
-        state = [round(x, 2), round(x_dot, 1), round(theta, 2), round(theta_dot, 1)]
+        state = [round(x, 2), round(x_dot, 1), round(theta, 2), round(theta_dot, 0)]
 
         # Limit state space
         state[0] = 0
         state[1] = 0
 
+        self.current_vel = 0
+
+        # Reset data
+        self.data = None
         return state
