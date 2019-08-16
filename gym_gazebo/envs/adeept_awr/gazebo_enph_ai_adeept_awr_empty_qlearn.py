@@ -53,12 +53,45 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
     def process_image(self, image_data):
 
         try:
-          img = self.bridge.imgmsg_to_cv2(image_data, "bgr8")
+          image = self.bridge.imgmsg_to_cv2(image_data, "bgr8")
         except CvBridgeError as e:
           print(e)
 
+        import numpy as np
+        import cv2
+        def region_of_interest(img, vertices):
+            # Define a blank matrix that matches the image height/width.
+            mask = np.zeros_like(img)
+            # Retrieve the number of color channels of the image.
+            channel_count = img.shape[2]
+            # Create a match color with the same color channel counts.
+            match_mask_color = (255,) * channel_count
+        
+            # Fill inside the polygon
+            cv2.fillPoly(mask, vertices, match_mask_color)
+        
+            # Returning the image only where mask pixels match
+            masked_image = cv2.bitwise_and(img, mask)
+            return masked_image
+
+        (height, width, channels) = image.shape
+        import matplotlib.pyplot as plt
+        import matplotlib.image as mpimg
+        region_of_interest_vertices = [
+            (0, height),
+            (width / 2, height / 2),
+            (width, height),
+        ]
+        cropped_image = region_of_interest(
+            image,
+            np.array([region_of_interest_vertices], np.int32),
+        )
+        #cv2.imshow("Image window", cropped_image)
+        #cv2.waitKey(3)
+        state = []
+
         # Get gray image and process GaussianBlur
-        gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(cropped_image,cv2.COLOR_BGR2GRAY)
         kernel_size = 5
         blur_gray = cv2.GaussianBlur(gray,(kernel_size, kernel_size),0)
 
@@ -73,7 +106,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         threshold = 5  # minimum number of votes (intersections in Hough grid cell)
         min_line_length = 100  # minimum number of pixels making up a line
         max_line_gap = 25  # maximum gap in pixels between connectable line segments
-        line_image = np.copy(img) * 0  # creating a blank to draw lines on
+        line_image = np.copy(cropped_image) * 0  # creating a blank to draw lines on
 
         # Run Hough on edge detected image
         # Output "lines" is an array containing endpoints of detected line segments
@@ -108,7 +141,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         print("__________________________________")
 
         # Draw the lines on the image
-        lines_edges = cv2.addWeighted(img, 0.8, line_image, 1, 0)
+        lines_edges = cv2.addWeighted(cropped_image, 0.8, line_image, 1, 0)
 
         cv2.imshow("Image window", lines_edges)
         cv2.waitKey(3)
