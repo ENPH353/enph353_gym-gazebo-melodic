@@ -98,12 +98,53 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
             minLineLength=40,
             maxLineGap=25
         )
-        print(lines)
 
+        left_line_x = []
+        left_line_y = []
+        right_line_x = []
+        right_line_y = []
         if not lines is None:
             for line in lines:
                 for x1, y1, x2, y2 in line:
-                    cv2.line(cropped_image,(x1,y1),(x2,y2),(255,0,0),5)
+                    slope = (y2 - y1) / (x2 - x1) # <-- Calculating the slope.
+                    if math.fabs(slope) < 0.5: # <-- Only consider extreme slope
+                        continue
+                    if slope <= 0: # <-- If the slope is negative, left group.
+                        left_line_x.extend([x1, x2])
+                        left_line_y.extend([y1, y2])
+                    else: # <-- Otherwise, right group.
+                        right_line_x.extend([x1, x2])
+                        right_line_y.extend([y1, y2])
+        min_y = image.shape[0] * (3 / 5) # <-- Just below the horizon
+        max_y = image.shape[0] # <-- The bottom of the image
+        if len(left_line_x) > 0 and len(left_line_y) > 0 and len(right_line_x) > 0 and len(right_line_y) > 0:
+            poly_left = np.poly1d(np.polyfit(
+                left_line_y,
+                left_line_x,
+                deg=1
+            ))
+            left_x_start = int(poly_left(max_y))
+            left_x_end = int(poly_left(min_y))
+            poly_right = np.poly1d(np.polyfit(
+                right_line_y,
+                right_line_x,
+                deg=1
+            ))
+            right_x_start = int(poly_right(max_y))
+            right_x_end = int(poly_right(min_y))
+
+            lines = [
+                        (left_x_start, max_y, left_x_end, min_y),
+                        (right_x_start, max_y, right_x_end, min_y),
+                    ]
+        else:
+            lines = None
+
+        if not lines is None:
+            for line in lines:
+                print(line)
+                x1, y1, x2, y2 = line
+                cv2.line(cropped_image,(x1,y1),(x2,y2),(255,0,0),5)
         cv2.imshow("Image window", cropped_image)
         cv2.waitKey(3)
         state = []
