@@ -136,24 +136,24 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
         num_cols = 5
         w = warped.shape[1] / num_cols
-        num_white = []
+        num_gray = []
         for i in range(num_cols):
             cropped_img = warped[0:warped.shape[0], i*w:(i+1)*w]
-            num_white.append(np.sum(cropped_img == 255))
+            num_gray.append(np.sum((cropped_img > 35) & (cropped_img < 90)))
 
         import copy
-        copy_num_white = copy.copy(num_white)
-        copy_num_white.sort() 
-        for i, num in enumerate(copy_num_white):
-            index = num_white.index(num)
-            num_white[index] = i
+        copy_num_gray = copy.copy(num_gray)
+        copy_num_gray.sort() 
+        for i, num in enumerate(copy_num_gray):
+            index = num_gray.index(num)
+            num_gray[index] = i
 
-        state = num_white
+        state = num_gray
         success = False
         fail = False
 
-        #print("State: {}".format(state))
-        #print("Reward: {}".format(reward))
+        print("State: {}".format(state))
+        print("Reward: {}".format(reward))
         return state, reward, success, fail
 
     def _seed(self, seed=None):
