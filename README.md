@@ -17,10 +17,23 @@ sudo pip install -e .
 
 ### Running an environment
 
+Go to directory where gym-gazebo is contained, then run:
+```
+source gym-gazebo/gym_gazebo/envs/enph353/devel/setup.bash
+cd gym-gazebo/examples/adeept_awr
+python enph_ai_adeept_awr_empty_qlearn.py
+```
 
+to run the adeept environment.
 
-### Display the simulation
+Go to directory where gym-gazebo is contained, then run:
+```
+source gym-gazebo/gym_gazebo/envs/enph353/devel/setup.bash
+cd gym-gazebo/examples/gazebo_cartpole  
+python gazebo_cartpole_v0.py
+```
 
+to run the cartpole environment.
 
 
 ### Killing background processes
