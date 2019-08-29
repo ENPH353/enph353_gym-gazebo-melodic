@@ -61,103 +61,65 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
         import numpy as np
         import cv2
-        def region_of_interest(img, vertices):
-            mask = np.zeros_like(img)
-            match_mask_color = 255 # <-- This line altered for grayscale.
-            
-            cv2.fillPoly(mask, vertices, match_mask_color)
-            masked_image = cv2.bitwise_and(img, mask)
-            return masked_image
 
-        (height, width, channels) = image.shape
-        import matplotlib.pyplot as plt
-        import matplotlib.image as mpimg
-        p1 = int(height * 4 / float(5))
-        p2 = int(height / float(3))
-        region_of_interest_vertices = [
-            (0, p1),
-            (0, height),
-            (width, height),
-            (width, p1),
-            (width / 2, p2),
-        ]
+        cv2.circle(image, (585, 392), 10, (0, 0, 1))
+        cv2.circle(image, (700, 392), 10, (0, 0, 1))
+        cv2.circle(image, (1224, 720), 10, (0, 0, 1))
+        cv2.circle(image, (172, 720), 10, (0, 0, 1))
 
-        gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        cannyed_image = cv2.Canny(gray_image, 100, 200)
-        # Moved the cropping operation to the end of the pipeline.
-        cropped_image = region_of_interest(
-            cannyed_image,
-            np.array([region_of_interest_vertices], np.int32)
-        )
-        #plt.figure()
-        #plt.imshow(cropped_image)
-        #plt.show()
+        # Manually found these numbers for perspective->ortho
+        rect = np.zeros((4, 2), dtype = "float32")
+        rect[0][0] = 585
+        rect[0][1] = 392
+        rect[1][0] = 700
+        rect[1][1] = 392
+        rect[2][0] = 1224
+        rect[2][1] = 720
+        rect[3][0] = 172
+        rect[3][1] = 720
 
-        #cv2.imshow("Image window", cropped_image)
-        #cv2.waitKey(3)
-        lines = cv2.HoughLinesP(
-            cropped_image,
-            rho=6,
-            theta=np.pi / 60,
-            threshold=160,
-            lines=np.array([]),
-            minLineLength=40,
-            maxLineGap=25
-        )
+        def four_point_transform(image, rect):
+          # obtain a consistent order of the points and unpack them
+          # individually
+          (tl, tr, br, bl) = rect
+         
+          # compute the width of the new image, which will be the
+          # maximum distance between bottom-right and bottom-left
+          # x-coordiates or the top-right and top-left x-coordinates
+          widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+          widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+          maxWidth = max(int(widthA), int(widthB))
+         
+          # compute the height of the new image, which will be the
+          # maximum distance between the top-right and bottom-right
+          # y-coordinates or the top-left and bottom-left y-coordinates
+          heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+          heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+          maxHeight = max(int(heightA), int(heightB))
+         
+          # now that we have the dimensions of the new image, construct
+          # the set of destination points to obtain a "birds eye view",
+          # (i.e. top-down view) of the image, again specifying points
+          # in the top-left, top-right, bottom-right, and bottom-left
+          # order
+          dst = np.array([
+            [0, 0],
+            [maxWidth - 1, 0],
+            [maxWidth - 1, maxHeight - 1],
+            [0, maxHeight - 1]], dtype = "float32")
+         
+          # compute the perspective transform matrix and then apply it
+          M = cv2.getPerspectiveTransform(rect, dst)
+          warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
+         
+          # return the warped image
+          return warped
 
-        left_line_x = []
-        left_line_y = []
-        right_line_x = []
-        right_line_y = []
-        if not lines is None:
-            for line in lines:
-                for x1, y1, x2, y2 in line:
-                    slope = (y2 - y1) / (x2 - x1) # <-- Calculating the slope.
-                    if math.fabs(slope) < 0.75: # <-- Only consider extreme slope
-                        continue
-                    if slope <= 0: # <-- If the slope is negative, left group.
-                        left_line_x.extend([x1, x2])
-                        left_line_y.extend([y1, y2])
-                    else: # <-- Otherwise, right group.
-                        right_line_x.extend([x1, x2])
-                        right_line_y.extend([y1, y2])
-        min_y = int(float(image.shape[0]) * float(3) / float(5)) # <-- Just below the horizon
-        max_y = image.shape[0] # <-- The bottom of the image
-        if len(left_line_x) > 0 and len(left_line_y) > 0 and len(right_line_x) > 0 and len(right_line_y) > 0:
-            poly_left = np.poly1d(np.polyfit(
-                left_line_y,
-                left_line_x,
-                deg=1
-            ))
-            left_x_start = int(poly_left(max_y))
-            left_x_end = int(poly_left(min_y))
-            poly_right = np.poly1d(np.polyfit(
-                right_line_y,
-                right_line_x,
-                deg=1
-            ))
-            right_x_start = int(poly_right(max_y))
-            right_x_end = int(poly_right(min_y))
+        warped = four_point_transform(image, rect)
 
-            lines = [
-                        (left_x_start, max_y, left_x_end, min_y),
-                        (right_x_start, max_y, right_x_end, min_y),
-                    ]
-        else:
-            lines = None
-
-        if lines is None and self.prev_lines is None:
-            return [], False, False
-        elif lines is None:
-            lines = self.prev_lines
-
-        self.prev_lines = lines
-        for line in lines:
-            print(line)
-            x1, y1, x2, y2 = line
-            cv2.line(cropped_image,(x1,y1),(x2,y2),(255,0,0),5)
-        cv2.imshow("Image window", cropped_image)
+        cv2.imshow("Image window", warped)
         cv2.waitKey(3)
+
         state = []
         success = False
         fail = False
