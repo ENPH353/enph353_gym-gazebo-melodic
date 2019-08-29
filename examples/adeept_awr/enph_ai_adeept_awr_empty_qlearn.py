@@ -50,12 +50,16 @@ if __name__ == '__main__':
     epsilon_discount = 0.9956
 
     # Load parameters, move file before running if not wanted
-    filename = 'objs.pkl'
+    from datetime import datetime
+    now = datetime.now()
+    dt_string = now.strftime("%d-%m-%Y=%H-%M-%S")
+    filename = dt_string
+    #filename = 'objs.pkl'
     if path.exists(filename):
         qlearn.loadParams(filename)
-        print("Loading params from {}".format(filename))
+        print("==========================Loading params from {}==========================".format(filename))
     else:
-        print("{} not found. Starting fresh.".format(filename))
+        print("=========================={} not found. Starting fresh.==========================".format(filename))
 
     # Setup for looping
     start_time = time.time()
@@ -89,6 +93,8 @@ if __name__ == '__main__':
             # Execute the action and get feedback
             observation, reward, done, info = env.step(action)
             cumulated_reward += reward
+            #print("Action: {}".format(action))
+            #print("Observation: {}".format(observation))
 
             if highest_reward < cumulated_reward:
                 highest_reward = cumulated_reward
