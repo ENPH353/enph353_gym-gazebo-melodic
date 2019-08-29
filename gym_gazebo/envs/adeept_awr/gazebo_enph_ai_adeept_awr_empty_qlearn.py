@@ -141,7 +141,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         num_gray = []
         for i in range(num_cols):
             cropped_img = region_of_interest[0:region_of_interest.shape[0], i*w:(i+1)*w]
-            num_gray.append(np.sum((cropped_img > 35) & (cropped_img < 90)))
+            num_gray.append(np.sum( ((cropped_img > 35) & (cropped_img < 45)) | ((cropped_img > 80) & (cropped_img < 90)) ))
 
         print(num_gray)
         output = []
