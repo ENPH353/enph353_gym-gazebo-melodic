@@ -51,6 +51,8 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         self._seed()
 
         self.prev_lines = None
+        import time
+        self.last_time = time.time()
 
     def four_point_transform(self, image, rect):
       # obtain a consistent order of the points and unpack them
@@ -135,25 +137,39 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         ### Get histogram for state
 
         num_cols = 5
-        w = warped.shape[1] / num_cols
+        w = region_of_interest.shape[1] / num_cols
         num_gray = []
         for i in range(num_cols):
-            cropped_img = warped[0:warped.shape[0], i*w:(i+1)*w]
+            cropped_img = region_of_interest[0:region_of_interest.shape[0], i*w:(i+1)*w]
             num_gray.append(np.sum((cropped_img > 35) & (cropped_img < 90)))
 
-        import copy
-        copy_num_gray = copy.copy(num_gray)
-        copy_num_gray.sort() 
-        for i, num in enumerate(copy_num_gray):
-            index = num_gray.index(num)
-            num_gray[index] = i
+        print(num_gray)
+        output = []
+        for num in num_gray:
+            if num > 27000:
+                output.append(1)
+            else:
+                output.append(0)
+        print(output)
+        #import copy
+        #copy_num_gray = copy.copy(num_gray)
+        #print(copy_num_gray)
+        #copy_num_gray.sort() 
+        #for i, num in enumerate(copy_num_gray):
+        #    index = num_gray.index(num)
+        #    num_gray[index] = i
 
         state = num_gray
         success = False
         fail = False
 
-        print("State: {}".format(state))
-        print("Reward: {}".format(reward))
+        
+        import time
+        if time.time() - self.last_time > 1:
+            print("State: {}".format(state))
+            print("Reward: {}".format(reward))
+            self.last_time = time.time()
+
         return state, reward, success, fail
 
     def _seed(self, seed=None):
@@ -198,7 +214,6 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
             print ("/gazebo/pause_physics service call failed")
 
         state, reward, succeeded, failed = self.process_image(image_data)
-        print(reward)
         if action == 0:
             reward *= 2
 
