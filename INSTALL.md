@@ -1,11 +1,3 @@
-
-## Table of Contents
-- [Installation](#installation)
-	- [Ubuntu 18.04](#ubuntu-1804)
-	- [Ubuntu 16.04 (**deprecated**)](#ubuntu-1604)
-	- [Ubuntu 14.04 (**deprecated**)](#ubuntu-1404)
-	- [Docker (**deprecated**)](#docker)
-
 ## Installation
 
 ### Ubuntu 18.04
@@ -60,3 +52,14 @@ git clone https://github.com/tylerlum/gym-gazebo
 cd gym-gazebo
 sudo pip install -e .
 ```
+
+#### Install gym-gazebo
+```
+cd ~/gym-gazebo/gym_gazebo/envs
+```
+Follow instructions [here](https://github.com/ENPH353/enph353_rosinstall) to setup your `enph353` workspace.
+
+Note: if enph353_rosinstall not updated, also need to go to enph353/src then clone https://github.com/tylerlum/cartpole_gazebo https://github.com/ros-controls/ros_control https://github.com/ros-simulation/gazebo_ros_pkgs for Gazebo cartpole.
+
+Then catkin_make.
+
