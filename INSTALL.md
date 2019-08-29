@@ -54,10 +54,11 @@ sudo pip install -e .
 ```
 
 #### Install gym-gazebo
+First navigate to the right directory
 ```
 cd ~/gym-gazebo/gym_gazebo/envs
 ```
-Follow instructions [here](https://github.com/ENPH353/enph353_rosinstall) to setup your `enph353` workspace.
+Then follow instructions [here](https://github.com/ENPH353/enph353_rosinstall) to setup your `enph353` workspace.
 
 Note: if enph353_rosinstall not updated, also need to go to enph353/src then clone https://github.com/tylerlum/cartpole_gazebo https://github.com/ros-controls/ros_control https://github.com/ros-simulation/gazebo_ros_pkgs for Gazebo cartpole.
 
