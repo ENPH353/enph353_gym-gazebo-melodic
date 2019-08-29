@@ -43,19 +43,24 @@ if __name__ == '__main__':
 
     # Setup qlearning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
-                    alpha=0.2, gamma=0.8, epsilon=0)
+                    alpha=0.2, gamma=0.8, epsilon=1)
 
     initial_epsilon = qlearn.epsilon
 
     epsilon_discount = 0.9956
 
     # Load parameters, move file before running if not wanted
-    filename = 'objs.pkl'
+    from datetime import datetime
+    now = datetime.now()
+    dt_string = now.strftime("%d-%m-%Y=%H-%M-%S")
+    filename = dt_string + ".pkl"
+    #filename = 'objs.pkl'
+    #filename = 'success_45_min.pkl'
     if path.exists(filename):
         qlearn.loadParams(filename)
-        print("Loading params from {}".format(filename))
+        print("==========================Loading params from {}==========================".format(filename))
     else:
-        print("{} not found. Starting fresh.".format(filename))
+        print("=========================={} not found. Starting fresh.==========================".format(filename))
 
     # Setup for looping
     start_time = time.time()
@@ -89,6 +94,9 @@ if __name__ == '__main__':
             # Execute the action and get feedback
             observation, reward, done, info = env.step(action)
             cumulated_reward += reward
+            print("Action: {}".format(action))
+            print("Observation: {}".format(observation))
+            print("Reward: {}".format(reward))
 
             if highest_reward < cumulated_reward:
                 highest_reward = cumulated_reward
