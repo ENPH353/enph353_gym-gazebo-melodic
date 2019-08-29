@@ -210,8 +210,6 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
         import time
         if time.time() - self.last_time > 1:
-            print("State: {}".format(state))
-            print("Reward: {}".format(reward))
             self.last_time = time.time()
         # Reward function
         return state, reward, (succeeded or failed), {}
