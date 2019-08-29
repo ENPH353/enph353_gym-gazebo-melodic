@@ -26,6 +26,9 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
     def image_callback(self, data):
         self.image_data = data
 
+    def collision_callback(self, data):
+        self.c_data = data
+
     def __init__(self):
         # Launch the simulation with the given launchfile name
         gazebo_env.GazeboEnv.__init__(self, "/home/tylerlum/gym-gazebo/gym_gazebo/envs/installation/catkin_ws/src/enph_ai/launch/sim.launch")
@@ -43,6 +46,8 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         # Setup subscription to position and collision
         self.image_sub = rospy.Subscriber('{}/pi_camera/image_raw'.format(self.robot_name), Image, self.image_callback)
         self.image_data = None
+        self.c_sub = rospy.Subscriber('/isHit', Bool, self.collision_callback)
+        self.c_data = None
         self.bridge = CvBridge()
 
         # Setup simulation parameters
@@ -102,11 +107,6 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         import numpy as np
         import cv2
 
-        cv2.circle(image, (585, 392), 10, (0, 0, 1))
-        cv2.circle(image, (700, 392), 10, (0, 0, 1))
-        cv2.circle(image, (1224, 720), 10, (0, 0, 1))
-        cv2.circle(image, (172, 720), 10, (0, 0, 1))
-
         # Manually found these numbers for perspective->ortho
         rect = np.zeros((4, 2), dtype = "float32")
         rect[0][0] = 585
@@ -121,21 +121,14 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         # Get ortho image
         warped = self.four_point_transform(image, rect)
 
-        # Get reward based on number of gray pixels
+        # Get reward based on number of gray pixels in roi
         region_of_interest = warped[warped.shape[0]*4//5:warped.shape[0],0:warped.shape[1]]
         cv2.imshow("Image window", region_of_interest)
         cv2.waitKey(3)
-        #l = np.sum(region_of_interest == 83)
-        #k = np.sum(region_of_interest == 84)
-        #j = np.sum(region_of_interest == 85)
-        #print(region_of_interest[region_of_interest.shape[0]//2,region_of_interest.shape[1]//2,0])
-        #print(region_of_interest[region_of_interest.shape[0]//2,region_of_interest.shape[1]//2,1])
-        #print(region_of_interest[region_of_interest.shape[0]//2,region_of_interest.shape[1]//2,2])
         reward = np.sum( ((region_of_interest > 35) & (region_of_interest < 45)) | ((region_of_interest > 80) & (region_of_interest < 90)) ) / (255*100)
         reward -= 7
 
         ### Get histogram for state
-
         num_cols = 5
         w = region_of_interest.shape[1] / num_cols
         num_gray = []
@@ -145,7 +138,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
         output = []
         for num in num_gray:
-            if num > 27000:
+            if num > 27000:  # threshold
                 output.append(1)
             else:
                 output.append(0)
@@ -154,12 +147,6 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         success = False
         fail = False
 
-        
-        import time
-        if time.time() - self.last_time > 1:
-            print("State: {}".format(state))
-            print("Reward: {}".format(reward))
-            self.last_time = time.time()
 
         return state, reward, success, fail
 
@@ -197,6 +184,11 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         while image_data is None:
             image_data = self.image_data
 
+        # Read collision data
+        c_data = self.c_data
+        while c_data is None:
+            c_data = self.c_data
+
         # Pause simulation
         rospy.wait_for_service('/gazebo/pause_physics')
         try:
@@ -205,9 +197,22 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
             print ("/gazebo/pause_physics service call failed")
 
         state, reward, succeeded, failed = self.process_image(image_data)
+
+        # use collision to affect state and reward
+        if c_data.data:
+            reward -= abs(2*reward)
+            state.append(1)
+        else:
+            state.append(0)
+
         if action == 0:
             reward *= 2
 
+        import time
+        if time.time() - self.last_time > 1:
+            print("State: {}".format(state))
+            print("Reward: {}".format(reward))
+            self.last_time = time.time()
         # Reward function
         return state, reward, (succeeded or failed), {}
 
