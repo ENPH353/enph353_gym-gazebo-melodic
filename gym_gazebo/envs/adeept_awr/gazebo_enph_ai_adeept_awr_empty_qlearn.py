@@ -129,7 +129,8 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         #print(region_of_interest[region_of_interest.shape[0]//2,region_of_interest.shape[1]//2,0])
         #print(region_of_interest[region_of_interest.shape[0]//2,region_of_interest.shape[1]//2,1])
         #print(region_of_interest[region_of_interest.shape[0]//2,region_of_interest.shape[1]//2,2])
-        reward = np.sum((region_of_interest > 35) & (region_of_interest < 90)) / (255*255)
+        reward = np.sum((region_of_interest > 35) & (region_of_interest < 90)) / (255*100)
+        reward -= 7
 
         ### Get histogram for state
 
@@ -151,8 +152,8 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         success = False
         fail = False
 
-        print("State: {}".format(state))
-        print("Reward: {}".format(reward))
+        #print("State: {}".format(state))
+        #print("Reward: {}".format(reward))
         return state, reward, success, fail
 
     def _seed(self, seed=None):
@@ -170,18 +171,18 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
         if action == 0: #FORWARD
             vel_cmd = Twist()
-            vel_cmd.linear.x = 0
-            vel_cmd.angular.z = 0.0
+            vel_cmd.linear.x = 1
+            vel_cmd.angular.z = 0
             self.vel_pub.publish(vel_cmd)
         elif action == 1: #LEFT
             vel_cmd = Twist()
             vel_cmd.linear.x = 0
-            vel_cmd.angular.z = 0
+            vel_cmd.angular.z = 10
             self.vel_pub.publish(vel_cmd)
         elif action == 2: #RIGHT
             vel_cmd = Twist()
             vel_cmd.linear.x = 0
-            vel_cmd.angular.z = 0
+            vel_cmd.angular.z = -10
             self.vel_pub.publish(vel_cmd)
 
         # Read image data
@@ -197,6 +198,9 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
             print ("/gazebo/pause_physics service call failed")
 
         state, reward, succeeded, failed = self.process_image(image_data)
+        print(reward)
+        if action == 0:
+            reward *= 2
 
         # Reward function
         return state, reward, (succeeded or failed), {}
