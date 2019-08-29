@@ -117,8 +117,18 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
         warped = four_point_transform(image, rect)
 
-        cv2.imshow("Image window", warped)
-        cv2.waitKey(3)
+        #cv2.imshow("Image window", warped)
+        #cv2.waitKey(3)
+        ### Get histogram
+
+        num_cols = 4
+        w = warped.shape[1] / num_cols
+        num_white = []
+        for i in range(num_cols):
+            cropped_img = warped[0:warped.shape[0], i*w:(i+1)*w]
+            num_white.append(np.sum(cropped_img == 255))
+
+        print(num_white.index(max(num_white)))
 
         state = []
         success = False
