@@ -48,7 +48,7 @@ sudo pip install keras
 #### Install gym-gazebo
 ```
 cd ~
-git clone https://github.com/tylerlum/gym-gazebo
+git clone https://github.com/ENPH353/enph353_gym-gazebo
 cd gym-gazebo
 sudo pip install -e .
 ```
@@ -56,7 +56,7 @@ sudo pip install -e .
 #### Install gym-gazebo
 First navigate to the right directory
 ```
-cd ~/gym-gazebo/gym_gazebo/envs
+cd ~/enph353_gym-gazebo/gym_gazebo/envs
 ```
 Then follow instructions [here](https://github.com/ENPH353/enph353_rosinstall) to setup your `enph353` workspace.
 
