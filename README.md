@@ -19,8 +19,8 @@ sudo pip install -e .
 
 Go to directory where gym-gazebo is contained, then run:
 ```
-source gym-gazebo/gym_gazebo/envs/enph353/devel/setup.bash
-cd gym-gazebo/examples/adeept_awr
+source enph353_gym-gazebo/gym_gazebo/envs/enph353/devel/setup.bash
+cd enph353_gym-gazebo/examples/adeept_awr
 python enph_ai_adeept_awr_empty_qlearn.py
 ```
 
@@ -28,8 +28,8 @@ to run the adeept environment.
 
 Go to directory where gym-gazebo is contained, then run:
 ```
-source gym-gazebo/gym_gazebo/envs/enph353/devel/setup.bash
-cd gym-gazebo/examples/gazebo_cartpole  
+source enph353_gym-gazebo/gym_gazebo/envs/enph353/devel/setup.bash
+cd enph353_gym-gazebo/examples/gazebo_cartpole  
 python gazebo_cartpole_v0.py
 ```
 
