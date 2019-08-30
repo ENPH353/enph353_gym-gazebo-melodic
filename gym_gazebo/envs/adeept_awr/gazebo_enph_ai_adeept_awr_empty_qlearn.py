@@ -20,6 +20,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from std_msgs.msg import Bool
 
 from gym.utils import seeding
+import os
 
 class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
@@ -31,7 +32,10 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
 
     def __init__(self):
         # Launch the simulation with the given launchfile name
-        gazebo_env.GazeboEnv.__init__(self, "/home/tylerlum/gym-gazebo/gym_gazebo/envs/installation/catkin_ws/src/enph_ai/launch/sim.launch")
+        scriptpath = os.path.realpath(__file__)
+        this_dir = os.path.dirname(os.path.abspath(scriptpath))
+        print(this_dir)
+        gazebo_env.GazeboEnv.__init__(self, this_dir + "/../enph353/src/enph353/enph353_utils/launch/sim.launch")
 
         self.robot_name = "/R1"
 
