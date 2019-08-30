@@ -50,7 +50,7 @@ class Gazebo_ENPH_Ai_Adeept_Awr_Empty_Env(gazebo_env.GazeboEnv):
         # Setup subscription to position and collision
         self.image_sub = rospy.Subscriber('{}/pi_camera/image_raw'.format(self.robot_name), Image, self.image_callback)
         self.image_data = None
-        self.c_sub = rospy.Subscriber('/isHit', Bool, self.collision_callback)
+        self.c_sub = rospy.Subscriber('{}_Hit'.format(self.robot_name), Bool, self.collision_callback)
         self.c_data = None
         self.bridge = CvBridge()
 
