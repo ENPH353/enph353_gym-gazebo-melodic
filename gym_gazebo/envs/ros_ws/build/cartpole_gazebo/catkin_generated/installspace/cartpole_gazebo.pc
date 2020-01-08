@@ -1,0 +1,8 @@
+prefix=/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/install
+
+Name: cartpole_gazebo
+Description: Description of cartpole_gazebo
+Version: 1.0.0
+Cflags: 
+Libs: -L/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/install/lib 
+Requires: 

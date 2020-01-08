@@ -1,0 +1,8 @@
+prefix=/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/devel
+
+Name: combined_robot_hw
+Description: Description of combined_robot_hw
+Version: 0.15.1
+Cflags: -I/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/src/ros_control/combined_robot_hw/include
+Libs: -L/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/devel/lib -lcombined_robot_hw
+Requires: hardware_interface pluginlib roscpp

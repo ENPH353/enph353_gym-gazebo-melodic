@@ -1,0 +1,8 @@
+prefix=/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/devel
+
+Name: gazebo_dev
+Description: Description of gazebo_dev
+Version: 2.5.19
+Cflags: 
+Libs: -L/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/devel/lib 
+Requires: 

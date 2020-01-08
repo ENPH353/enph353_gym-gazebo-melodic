@@ -1,0 +1,8 @@
+prefix=/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/install
+
+Name: rqt_controller_manager
+Description: Description of rqt_controller_manager
+Version: 0.15.1
+Cflags: 
+Libs: -L/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/install/lib 
+Requires: 

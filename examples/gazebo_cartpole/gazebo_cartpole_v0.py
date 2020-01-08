@@ -30,6 +30,7 @@ def render():
     elif ((x-render_episodes)%render_interval == 0) and (x != 0) and (x > render_skip) and (render_episodes < x):
         env.render(close=True)
 
+
 if __name__ == '__main__':
 
     # Setup environment
@@ -43,7 +44,7 @@ if __name__ == '__main__':
 
     # Setup qlearning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
-                    alpha=0.2, gamma=0.8, epsilon=0)
+                           alpha=0.2, gamma=0.8, epsilon=0)
 
     initial_epsilon = qlearn.epsilon
 
@@ -72,21 +73,21 @@ if __name__ == '__main__':
     for x in range(total_episodes):
         # Reset for episode
         done = False
-        cumulated_reward = 0 #Should going forward give more reward then L/R ?
+        cumulated_reward = 0  # Should going forward give more reward then L/R?
         observation = env.reset()
 
         # Decrease chance of random action
         if qlearn.epsilon > 0.05:
             qlearn.epsilon *= epsilon_discount
 
-        #render() #defined above, not env.render()
+        # render() #defined above, not env.render()
 
         state = ''.join(map(str, observation))
         qlearn.num_times_learn = 0
         qlearn.num_times_seen_before = 0
 
         # To change max episode steps, go to gym_gazebo/__init__.py
-        i = 0
+        i = -1
         while True:
             i += 1
 
