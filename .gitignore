@@ -1,3 +1,8 @@
+gym_gazebo/envs/ros_ws/build
+gym_gazebo/envs/ros_ws/devel
+
+/examples/gazebo_cartpole/*.pkl
+
 *.swp
 *.pyc
 *.py~

@@ -1,8 +1,0 @@
-prefix=/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/devel
-
-Name: controller_manager_msgs
-Description: Description of controller_manager_msgs
-Version: 0.15.1
-Cflags: -I/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/devel/include
-Libs: -L/home/fizzer/enph353_gym-gazebo/gym_gazebo/envs/ros_ws/devel/lib 
-Requires: std_msgs message_runtime
